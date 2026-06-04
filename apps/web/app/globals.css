@@ -15,8 +15,60 @@ body {
   margin: 0;
 }
 
+a {
+  color: inherit;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app-header {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 32px;
+  border-bottom: 1px solid #dce4dd;
+  background: #ffffff;
+}
+
+.brand {
+  font-size: 17px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.header-nav a,
+.link-button {
+  color: #24382c;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.user-name {
+  color: #52705e;
+  font-weight: 700;
+}
+
 .page {
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
   display: grid;
   place-items: center;
   padding: 32px;
@@ -43,4 +95,86 @@ p {
   margin: 0;
   font-size: 18px;
   line-height: 1.6;
+}
+
+.auth-page {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.auth-panel {
+  width: min(100%, 420px);
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 8px;
+  color: #34483b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #c7d3ca;
+  border-radius: 6px;
+  padding: 0 12px;
+  color: #17201b;
+  background: #ffffff;
+}
+
+.auth-form input:focus {
+  border-color: #52705e;
+  outline: 2px solid #dbe8df;
+}
+
+.primary-button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #2e6140;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.form-error {
+  color: #b42318;
+  font-size: 14px;
+}
+
+.auth-link {
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.auth-link a {
+  color: #2e6140;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 32px;
+  }
 }

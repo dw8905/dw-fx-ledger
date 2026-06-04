@@ -32,16 +32,16 @@ class TokenPair(BaseModel):
     token_type: str = "bearer"
 
 
-class AuthResponse(TokenPair):
+class AuthResponse(BaseModel):
     user: UserRead
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class MessageResponse(BaseModel):

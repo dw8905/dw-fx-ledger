@@ -25,15 +25,15 @@ def test_auth_flow() -> None:
     )
     assert register_response.status_code == 201, register_response.text
     register_body = register_response.json()
-    assert register_body["access_token"]
-    assert register_body["refresh_token"]
     assert register_body["user"]["email"] == email
     assert "user" in register_body["user"]["roles"]
+    assert "dw_fx_ledger_access_token" in register_response.cookies
+    assert "dw_fx_ledger_refresh_token" in register_response.cookies
+    register_set_cookie = register_response.headers.get("set-cookie", "")
+    assert "HttpOnly" in register_set_cookie
+    assert "SameSite=lax" in register_set_cookie
 
-    me_response = client.get(
-        "/auth/me",
-        headers={"Authorization": f"Bearer {register_body['access_token']}"},
-    )
+    me_response = client.get("/auth/me")
     assert me_response.status_code == 200, me_response.text
     assert me_response.json()["login_id"] == login_id
 
@@ -43,28 +43,21 @@ def test_auth_flow() -> None:
     )
     assert login_response.status_code == 200, login_response.text
     login_body = login_response.json()
-    assert login_body["access_token"]
-    assert login_body["refresh_token"]
+    assert login_body["user"]["email"] == email
+    assert "dw_fx_ledger_access_token" in login_response.cookies
+    assert "dw_fx_ledger_refresh_token" in login_response.cookies
 
-    refresh_response = client.post(
-        "/auth/refresh",
-        json={"refresh_token": login_body["refresh_token"]},
-    )
+    refresh_response = client.post("/auth/refresh")
     assert refresh_response.status_code == 200, refresh_response.text
     refresh_body = refresh_response.json()
-    assert refresh_body["access_token"]
-    assert refresh_body["refresh_token"]
+    assert refresh_body["message"] == "Token refreshed"
+    assert "dw_fx_ledger_access_token" in refresh_response.cookies
+    assert "dw_fx_ledger_refresh_token" in refresh_response.cookies
 
-    logout_response = client.post(
-        "/auth/logout",
-        json={"refresh_token": refresh_body["refresh_token"]},
-    )
+    logout_response = client.post("/auth/logout")
     assert logout_response.status_code == 200, logout_response.text
 
-    reused_refresh_response = client.post(
-        "/auth/refresh",
-        json={"refresh_token": refresh_body["refresh_token"]},
-    )
+    reused_refresh_response = client.post("/auth/refresh")
     assert reused_refresh_response.status_code == 401
 
 

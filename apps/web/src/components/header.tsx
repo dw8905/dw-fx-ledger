@@ -1,0 +1,31 @@
+"use client";
+
+import Link from "next/link";
+import { useAuth } from "../context/auth-context";
+
+export function Header() {
+  const { status, user, logout } = useAuth();
+
+  return (
+    <header className="app-header">
+      <Link className="brand" href="/">
+        DW FX Ledger
+      </Link>
+      <nav className="header-nav" aria-label="사용자 메뉴">
+        {status === "authenticated" ? (
+          <>
+            <span className="user-name">{user?.displayName}</span>
+            <button className="link-button" type="button" onClick={() => void logout()}>
+              로그아웃
+            </button>
+          </>
+        ) : (
+          <>
+            <Link href="/login">로그인</Link>
+            <Link href="/register">회원가입</Link>
+          </>
+        )}
+      </nav>
+    </header>
+  );
+}

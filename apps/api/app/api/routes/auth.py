@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.auth import User
 from app.schemas.auth import (
@@ -14,9 +15,9 @@ from app.schemas.auth import (
     MessageResponse,
     RefreshRequest,
     RegisterRequest,
-    TokenPair,
     UserRead,
 )
+from app.services.cookies import clear_auth_cookies, set_auth_cookies
 from app.services.auth import (
     consume_refresh_token,
     create_user,
@@ -32,7 +33,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> AuthResponse:
+def register(
+    payload: RegisterRequest,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+) -> AuthResponse:
     existing_user = db.scalar(
         select(User).where(
             or_(
@@ -56,15 +61,16 @@ def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) 
     db.commit()
     db.refresh(user)
     user = get_user_by_email(db, str(payload.email)) or user
-    return AuthResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=to_user_read(user),
-    )
+    set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+    return AuthResponse(user=to_user_read(user))
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> AuthResponse:
+def login(
+    payload: LoginRequest,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+) -> AuthResponse:
     user = get_user_by_identifier(db, payload.identifier)
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
@@ -77,16 +83,27 @@ def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> Aut
 
     access_token, refresh_token = issue_token_pair(db, user)
     db.commit()
-    return AuthResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        user=to_user_read(user),
-    )
+    set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+    return AuthResponse(user=to_user_read(user))
 
 
-@router.post("/refresh", response_model=TokenPair)
-def refresh(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]) -> TokenPair:
-    user = consume_refresh_token(db, payload.refresh_token)
+@router.post("/refresh", response_model=MessageResponse)
+def refresh(
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+    payload: Annotated[RefreshRequest | None, Body()] = None,
+    refresh_cookie: Annotated[
+        str | None, Cookie(alias=settings.refresh_token_cookie_name)
+    ] = None,
+) -> MessageResponse:
+    refresh_token_value = payload.refresh_token if payload and payload.refresh_token else refresh_cookie
+    if refresh_token_value is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing refresh token",
+        )
+
+    user = consume_refresh_token(db, refresh_token_value)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -95,13 +112,24 @@ def refresh(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]) ->
 
     access_token, refresh_token = issue_token_pair(db, user)
     db.commit()
-    return TokenPair(access_token=access_token, refresh_token=refresh_token)
+    set_auth_cookies(response, access_token=access_token, refresh_token=refresh_token)
+    return MessageResponse(message="Token refreshed")
 
 
 @router.post("/logout", response_model=MessageResponse)
-def logout(payload: LogoutRequest, db: Annotated[Session, Depends(get_db)]) -> MessageResponse:
-    revoke_refresh_token(db, payload.refresh_token)
+def logout(
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+    payload: Annotated[LogoutRequest | None, Body()] = None,
+    refresh_cookie: Annotated[
+        str | None, Cookie(alias=settings.refresh_token_cookie_name)
+    ] = None,
+) -> MessageResponse:
+    refresh_token_value = payload.refresh_token if payload and payload.refresh_token else refresh_cookie
+    if refresh_token_value is not None:
+        revoke_refresh_token(db, refresh_token_value)
     db.commit()
+    clear_auth_cookies(response)
     return MessageResponse(message="Logged out")
 
 
