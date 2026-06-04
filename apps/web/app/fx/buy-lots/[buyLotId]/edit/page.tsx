@@ -1,18 +1,39 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
-import { AuthGuard } from "../../../../src/components/auth-guard";
-import { DateSegmentInput } from "../../../../src/components/date-segment-input";
-import { createBuyLot } from "../../../../src/lib/fx-api";
+import { useParams, useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import { AuthGuard } from "../../../../../src/components/auth-guard";
+import { DateSegmentInput } from "../../../../../src/components/date-segment-input";
+import { getBuyLot, updateBuyLot, type BuyLot } from "../../../../../src/lib/fx-api";
 
-function NewBuyLotContent() {
+function EditBuyLotContent() {
+  const params = useParams<{ buyLotId: string }>();
   const router = useRouter();
+  const buyLotId = Number(params.buyLotId);
+  const [buyLot, setBuyLot] = useState<BuyLot | null>(null);
   const [buyDate, setBuyDate] = useState("");
   const [buyKrwAmount, setBuyKrwAmount] = useState("");
   const [buyExchangeRate, setBuyExchangeRate] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    getBuyLot(buyLotId)
+      .then((loaded) => {
+        if (loaded.lotStatus !== "open" || !loaded.isActive) {
+          setError("open 상태의 활성 매수 로트만 수정할 수 있습니다.");
+          return;
+        }
+
+        setBuyLot(loaded);
+        setBuyDate(loaded.buyDate);
+        setBuyKrwAmount(String(loaded.buyKrwAmount));
+        setBuyExchangeRate(loaded.buyExchangeRate);
+      })
+      .catch((caughtError) =>
+        setError(caughtError instanceof Error ? caughtError.message : "매수 로트를 불러오지 못했습니다.")
+      );
+  }, [buyLotId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -20,23 +41,35 @@ function NewBuyLotContent() {
     setIsSubmitting(true);
 
     try {
-      await createBuyLot({
+      await updateBuyLot(buyLotId, {
         buyDate,
         buyKrwAmount: Number(buyKrwAmount),
         buyExchangeRate
       });
       router.push("/fx/buy-lots");
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "매수 로트 등록에 실패했습니다.");
+      setError(caughtError instanceof Error ? caughtError.message : "매수 로트 수정에 실패했습니다.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  if (error && !buyLot) {
+    return (
+      <main className="content-page narrow">
+        <p className="form-error">{error}</p>
+      </main>
+    );
+  }
+
+  if (!buyLot) {
+    return <main className="content-page narrow">매수 로트를 불러오는 중입니다.</main>;
+  }
+
   return (
     <main className="content-page narrow">
       <p className="eyebrow">FX Ledger</p>
-      <h1>매수 로트 등록</h1>
+      <h1>매수 로트 수정</h1>
       <form className="post-form" onSubmit={handleSubmit}>
         <DateSegmentInput label="매수일" required value={buyDate} onChange={setBuyDate} />
         <label>
@@ -62,17 +95,17 @@ function NewBuyLotContent() {
         </label>
         {error ? <p className="form-error">{error}</p> : null}
         <button className="primary-button" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "저장 중" : "저장"}
+          {isSubmitting ? "수정 중" : "수정"}
         </button>
       </form>
     </main>
   );
 }
 
-export default function NewBuyLotPage() {
+export default function EditBuyLotPage() {
   return (
     <AuthGuard>
-      <NewBuyLotContent />
+      <EditBuyLotContent />
     </AuthGuard>
   );
 }

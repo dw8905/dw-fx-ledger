@@ -3,20 +3,39 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
+import { SortableHeader, type SortOrder } from "../../../src/components/sortable-header";
 import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../src/lib/format";
 import { listBuyLots, type BuyLotListResponse } from "../../../src/lib/fx-api";
 
 function BuyLotsContent() {
   const [data, setData] = useState<BuyLotListResponse | null>(null);
   const [error, setError] = useState("");
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(null);
+
+  function handleSort(field: string) {
+    if (sortBy !== field) {
+      setSortBy(field);
+      setSortOrder("asc");
+      return;
+    }
+
+    if (sortOrder === "asc") {
+      setSortOrder("desc");
+      return;
+    }
+
+    setSortBy(null);
+    setSortOrder(null);
+  }
 
   useEffect(() => {
-    listBuyLots()
+    listBuyLots(1, 20, sortBy, sortOrder)
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "매수 로트를 불러오지 못했습니다.")
       );
-  }, []);
+  }, [sortBy, sortOrder]);
 
   return (
     <main className="content-page">
@@ -39,18 +58,31 @@ function BuyLotsContent() {
             <thead>
               <tr>
                 <th>번호</th>
-                <th>매수일</th>
-                <th>매수원화환전금액</th>
-                <th>매수적용환율</th>
-                <th>달러환전금액</th>
-                <th>상태</th>
-                <th>등록일</th>
+                <th>
+                  <SortableHeader label="매수일" field="buy_date" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                </th>
+                <th>
+                  <SortableHeader label="매수원화환전금액" field="buy_krw_amount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                </th>
+                <th>
+                  <SortableHeader label="매수적용환율" field="buy_exchange_rate" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                </th>
+                <th>
+                  <SortableHeader label="달러환전금액" field="usd_amount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                </th>
+                <th>
+                  <SortableHeader label="상태" field="lot_status" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                </th>
+                <th>
+                  <SortableHeader label="등록일" field="created_at" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                </th>
+                <th>작업</th>
               </tr>
             </thead>
             <tbody>
               {data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>매수 로트가 없습니다.</td>
+                  <td colSpan={8}>매수 로트가 없습니다.</td>
                 </tr>
               ) : (
                 data.items.map((lot) => (
@@ -62,6 +94,13 @@ function BuyLotsContent() {
                     <td>{formatDecimal(lot.usdAmount)} USD</td>
                     <td>{lot.lotStatus}</td>
                     <td>{formatDateTime(lot.createdAt)}</td>
+                    <td>
+                      {lot.lotStatus === "open" && lot.isActive ? (
+                        <Link href={`/fx/buy-lots/${lot.buyLotId}/edit`}>수정</Link>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                   </tr>
                 ))
               )}

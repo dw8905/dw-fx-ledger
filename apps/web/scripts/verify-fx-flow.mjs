@@ -77,4 +77,42 @@ if (!list.items.some((lot) => lot.buyLotId === created.buyLotId)) {
   throw new Error("Created buy lot was not found in the list");
 }
 
-console.log(`fx flow ok: ${created.buyLotId}`);
+const editable = await request(`/api/backend/fx/buy-lots/${created.buyLotId}`, {
+  method: "PUT",
+  body: JSON.stringify({
+    buyDate: "2025-03-07",
+    buyKrwAmount: 41675154,
+    buyExchangeRate: "1450.51"
+  })
+});
+if (editable.buyDate !== "2025-03-07") {
+  throw new Error(`Unexpected buy lot update response: ${JSON.stringify(editable)}`);
+}
+
+const sortedBuyLots = await request("/api/backend/fx/buy-lots?sort_by=buy_exchange_rate&sort_order=asc");
+if (!Array.isArray(sortedBuyLots.items)) {
+  throw new Error("Sorted buy lot list did not return items");
+}
+
+const sell = await request("/api/backend/fx/sell-transactions", {
+  method: "POST",
+  body: JSON.stringify({
+    sellDate: "2026-06-04",
+    sellUsdAmount: "214.93",
+    sellExchangeRate: "1531.33",
+    allocationStrategy: "highest_rate_first"
+  })
+});
+
+if (sell.totalRealProfitKrw !== 17371 || sell.allocations.length !== 1) {
+  throw new Error(`Unexpected sell transaction response: ${JSON.stringify(sell)}`);
+}
+
+const sellList = await request(
+  "/api/backend/fx/sell-transactions?sort_by=total_real_profit_krw&sort_order=desc"
+);
+if (!sellList.items.some((transaction) => transaction.sellTransactionId === sell.sellTransactionId)) {
+  throw new Error("Created sell transaction was not found in the list");
+}
+
+console.log(`fx flow ok: buy lot ${created.buyLotId}, sell transaction ${sell.sellTransactionId}`);

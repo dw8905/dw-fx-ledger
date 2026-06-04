@@ -2,6 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import (
@@ -120,4 +121,60 @@ class FxLotAllocation(Base):
         Index("ix_fx_lot_allocations_source_buy_lot_id", "source_buy_lot_id"),
         Index("ix_fx_lot_allocations_closed_buy_lot_id", "closed_buy_lot_id"),
         Index("ix_fx_lot_allocations_remaining_buy_lot_id", "remaining_buy_lot_id"),
+    )
+
+
+class FxLotEvent(Base):
+    __tablename__ = "fx_lot_events"
+
+    lot_event_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.user_id"), nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    event_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="completed"
+    )
+    root_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    sell_transaction_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_sell_transactions.sell_transaction_id"), nullable=True
+    )
+    lot_allocation_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_lot_allocations.lot_allocation_id"), nullable=True
+    )
+    source_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    closed_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    remaining_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    restored_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    related_event_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_lot_events.lot_event_id"), nullable=True
+    )
+    event_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.user_id"), nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_fx_lot_events_user_id_created_at", "user_id", "created_at"),
+        Index("ix_fx_lot_events_root_buy_lot_id_created_at", "root_buy_lot_id", "created_at"),
+        Index("ix_fx_lot_events_sell_transaction_id", "sell_transaction_id"),
+        Index("ix_fx_lot_events_lot_allocation_id", "lot_allocation_id"),
+        Index("ix_fx_lot_events_source_buy_lot_id", "source_buy_lot_id"),
+        Index("ix_fx_lot_events_restored_buy_lot_id", "restored_buy_lot_id"),
+        Index("ix_fx_lot_events_event_type", "event_type"),
     )

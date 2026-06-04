@@ -20,7 +20,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -257,7 +259,8 @@ p {
 }
 
 .post-form input,
-.post-form textarea {
+.post-form textarea,
+.post-form select {
   width: 100%;
   border: 1px solid #c7d3ca;
   border-radius: 6px;
@@ -272,9 +275,48 @@ p {
 }
 
 .post-form input:focus,
-.post-form textarea:focus {
+.post-form textarea:focus,
+.post-form select:focus {
   border-color: #52705e;
   outline: 2px solid #dbe8df;
+}
+
+.date-segment-field {
+  display: grid;
+  gap: 8px;
+  color: #34483b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.date-segment-group {
+  display: grid;
+  grid-template-columns: minmax(86px, 1fr) auto minmax(58px, 0.7fr) auto minmax(58px, 0.7fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.date-segment-group input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #c7d3ca;
+  border-radius: 6px;
+  padding: 0 12px;
+}
+
+.field-error {
+  color: #b42318;
+  font-size: 13px;
+}
+
+.sort-button {
+  border: 0;
+  padding: 0;
+  color: #52705e;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .back-link {
@@ -301,6 +343,60 @@ p {
   background: #b42318;
   cursor: pointer;
   font-weight: 800;
+}
+
+.secondary-button {
+  min-height: 40px;
+  border: 1px solid #9aaea0;
+  border-radius: 6px;
+  padding: 0 14px;
+  color: #2f6041;
+  background: #ffffff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.detail-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #dce4dd;
+  border-radius: 6px;
+}
+
+.compact-panel {
+  max-width: 560px;
+}
+
+.detail-panel h2 {
+  margin: 0;
+  color: #20352a;
+  font-size: 22px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.detail-grid div {
+  display: grid;
+  gap: 4px;
+}
+
+.detail-grid dt {
+  color: #52705e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .post-detail {
@@ -363,6 +459,10 @@ p {
   }
 
   .post-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -8,6 +8,7 @@
     "start": "next start --port 3000",
     "lint": "tsc --noEmit",
     "test:auth-flow": "node scripts/verify-auth-flow.mjs",
+    "test:date-input": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/verify-date-segments.mjs",
     "test:fx-flow": "node scripts/verify-fx-flow.mjs",
     "test:posts-flow": "node scripts/verify-posts-flow.mjs",
     "typecheck": "tsc --noEmit"
