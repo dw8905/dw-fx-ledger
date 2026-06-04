@@ -2,6 +2,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/backend";
 
 type ApiOptions = RequestInit & {
   skipRefresh?: boolean;
+  redirectOnAuthFailure?: boolean;
 };
 
 function toUrl(path: string) {
@@ -53,7 +54,9 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
       return apiFetch<T>(path, { ...options, skipRefresh: true });
     }
 
-    redirectToLogin();
+    if (options.redirectOnAuthFailure ?? true) {
+      redirectToLogin();
+    }
   }
 
   if (!response.ok) {

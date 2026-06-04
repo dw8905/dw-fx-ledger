@@ -12,6 +12,7 @@ export function Header() {
         DW FX Ledger
       </Link>
       <nav className="header-nav" aria-label="사용자 메뉴">
+        <Link href="/posts">게시판</Link>
         {status === "authenticated" ? (
           <>
             <span className="user-name">{user?.displayName}</span>

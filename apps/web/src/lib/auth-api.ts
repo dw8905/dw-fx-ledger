@@ -76,8 +76,10 @@ export async function register(input: {
   return mapAuthResult(result);
 }
 
-export async function getMe() {
-  const result = await apiFetch<BackendUser>("/auth/me");
+export async function getMe(options: { redirectOnAuthFailure?: boolean } = {}) {
+  const result = await apiFetch<BackendUser>("/auth/me", {
+    redirectOnAuthFailure: options.redirectOnAuthFailure
+  });
   return mapUser(result);
 }
 

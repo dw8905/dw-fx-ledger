@@ -1,0 +1,58 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+
+type PostFormProps = {
+  initialTitle?: string;
+  initialContent?: string;
+  submitLabel: string;
+  onSubmit: (input: { title: string; content: string }) => Promise<void>;
+};
+
+export function PostForm({
+  initialTitle = "",
+  initialContent = "",
+  submitLabel,
+  onSubmit
+}: PostFormProps) {
+  const [title, setTitle] = useState(initialTitle);
+  const [content, setContent] = useState(initialContent);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      await onSubmit({ title, content });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "저장에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <form className="post-form" onSubmit={handleSubmit}>
+      <label>
+        제목
+        <input
+          maxLength={200}
+          required
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+      </label>
+      <label>
+        내용
+        <textarea required value={content} onChange={(event) => setContent(event.target.value)} />
+      </label>
+      {error ? <p className="form-error">{error}</p> : null}
+      <button className="primary-button" disabled={isSubmitting} type="submit">
+        {isSubmitting ? "저장 중" : submitLabel}
+      </button>
+    </form>
+  );
+}

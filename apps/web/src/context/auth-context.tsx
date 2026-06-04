@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const reloadUser = useCallback(async () => {
     try {
-      const currentUser = await authApi.getMe();
+      const currentUser = await authApi.getMe({ redirectOnAuthFailure: false });
       setUser(currentUser);
       setStatus("authenticated");
     } catch {
