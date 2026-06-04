@@ -1,0 +1,16 @@
+{
+  "name": "dw-fx-ledger",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @dw-fx-ledger/web --filter @dw-fx-ledger/admin dev",
+    "dev:web": "pnpm --filter @dw-fx-ledger/web dev",
+    "dev:admin": "pnpm --filter @dw-fx-ledger/admin dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

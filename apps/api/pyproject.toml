@@ -1,0 +1,27 @@
+[project]
+name = "dw-fx-ledger-api"
+version = "0.1.0"
+description = "FastAPI service for DW FX Ledger"
+readme = "../../README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.16.1",
+  "fastapi>=0.115.12",
+  "psycopg[binary]>=3.2.9",
+  "pydantic-settings>=2.9.1",
+  "sqlalchemy>=2.0.41",
+  "uvicorn[standard]>=0.34.3"
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.0",
+  "ruff>=0.11.12"
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
