@@ -1,0 +1,123 @@
+from datetime import date, datetime
+from decimal import Decimal
+
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, func
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import (
+    AuditUserMixin,
+    Base,
+    ExchangeRate,
+    KRWAmount,
+    SoftDeleteMixin,
+    String,
+    Text,
+    TimestampMixin,
+    USDNumeric,
+)
+
+
+class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
+    __tablename__ = "fx_sell_transactions"
+
+    sell_transaction_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.user_id"), nullable=False
+    )
+    sell_date: Mapped[date] = mapped_column(nullable=False)
+    sell_usd_amount: Mapped[Decimal] = mapped_column(USDNumeric, nullable=False)
+    sell_exchange_rate: Mapped[Decimal] = mapped_column(ExchangeRate, nullable=False)
+    allocation_strategy: Mapped[str] = mapped_column(String(50), nullable=False)
+    transaction_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="completed"
+    )
+    total_buy_krw_amount: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    total_sell_krw_amount: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    total_real_profit_krw: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    total_display_profit_krw: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    memo: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_fx_sell_transactions_user_id", "user_id"),
+        Index("ix_fx_sell_transactions_user_id_sell_date", "user_id", "sell_date"),
+        Index("ix_fx_sell_transactions_allocation_strategy", "allocation_strategy"),
+        Index("ix_fx_sell_transactions_transaction_status", "transaction_status"),
+    )
+
+
+class FxBuyLot(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
+    __tablename__ = "fx_buy_lots"
+
+    buy_lot_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.user_id"), nullable=False
+    )
+    parent_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    root_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    lot_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    buy_date: Mapped[date] = mapped_column(nullable=False)
+    buy_krw_amount: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    buy_exchange_rate: Mapped[Decimal] = mapped_column(ExchangeRate, nullable=False)
+    usd_amount: Mapped[Decimal] = mapped_column(USDNumeric, nullable=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, server_default="true")
+    lock_version: Mapped[int] = mapped_column(nullable=False, server_default="1")
+
+    __table_args__ = (
+        Index("ix_fx_buy_lots_user_id", "user_id"),
+        Index(
+            "ix_fx_buy_lots_user_id_lot_status_is_active_is_deleted",
+            "user_id",
+            "lot_status",
+            "is_active",
+            "is_deleted",
+        ),
+        Index("ix_fx_buy_lots_user_id_buy_date", "user_id", "buy_date"),
+        Index("ix_fx_buy_lots_user_id_buy_exchange_rate", "user_id", "buy_exchange_rate"),
+        Index("ix_fx_buy_lots_parent_buy_lot_id", "parent_buy_lot_id"),
+        Index("ix_fx_buy_lots_root_buy_lot_id", "root_buy_lot_id"),
+    )
+
+
+class FxLotAllocation(Base):
+    __tablename__ = "fx_lot_allocations"
+
+    lot_allocation_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    sell_transaction_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("fx_sell_transactions.sell_transaction_id"), nullable=False
+    )
+    source_buy_lot_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=False
+    )
+    closed_buy_lot_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=False
+    )
+    remaining_buy_lot_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
+    )
+    allocated_usd_amount: Mapped[Decimal] = mapped_column(USDNumeric, nullable=False)
+    allocated_buy_krw_amount: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    allocated_sell_krw_amount: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    real_profit_krw: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    display_profit_krw: Mapped[int] = mapped_column(KRWAmount, nullable=False)
+    exchange_diff: Mapped[Decimal] = mapped_column(ExchangeRate, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.user_id"), nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_fx_lot_allocations_sell_transaction_id", "sell_transaction_id"),
+        Index("ix_fx_lot_allocations_source_buy_lot_id", "source_buy_lot_id"),
+        Index("ix_fx_lot_allocations_closed_buy_lot_id", "closed_buy_lot_id"),
+        Index("ix_fx_lot_allocations_remaining_buy_lot_id", "remaining_buy_lot_id"),
+    )
