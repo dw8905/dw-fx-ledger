@@ -195,6 +195,108 @@ def test_buy_lots_sorting() -> None:
     assert desc_body["size"] == 2
 
 
+def test_buy_lot_delete_open_without_events_success() -> None:
+    require_fx_lot_events_table()
+
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+    create_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2025-03-06",
+            "buyKrwAmount": 1000000,
+            "buyExchangeRate": "1000.00",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    created = create_response.json()
+
+    delete_response = client.delete(f"/fx/buy-lots/{created['buyLotId']}")
+    assert delete_response.status_code == 200, delete_response.text
+    deleted = delete_response.json()
+    assert deleted["buyLotId"] == created["buyLotId"]
+    assert deleted["lotStatus"] == "cancelled"
+    assert deleted["isActive"] is False
+
+    detail_response = client.get(f"/fx/buy-lots/{created['buyLotId']}")
+    assert detail_response.status_code == 404
+
+    list_response = client.get("/fx/buy-lots")
+    assert list_response.status_code == 200, list_response.text
+    listed_ids = {item["buyLotId"] for item in list_response.json()["items"]}
+    assert created["buyLotId"] not in listed_ids
+
+
+def test_buy_lot_delete_rejects_other_user() -> None:
+    require_fx_lot_events_table()
+
+    owner_client = TestClient(app)
+    other_client = TestClient(app)
+    register_user(owner_client, uuid4().hex[:12])
+    register_user(other_client, uuid4().hex[:12])
+
+    create_response = owner_client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2025-03-06",
+            "buyKrwAmount": 1000000,
+            "buyExchangeRate": "1000.00",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+
+    delete_response = other_client.delete(
+        f"/fx/buy-lots/{create_response.json()['buyLotId']}"
+    )
+    assert delete_response.status_code == 404
+
+
+def test_buy_lot_delete_rejects_used_split_sold_and_cancelled_lots() -> None:
+    require_fx_lot_events_table()
+
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+    source_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2025-03-06",
+            "buyKrwAmount": 1000000,
+            "buyExchangeRate": "1000.00",
+        },
+    )
+    assert source_response.status_code == 201, source_response.text
+    source = source_response.json()
+
+    sell_response = client.post(
+        "/fx/sell-transactions",
+        json={
+            "sellDate": "2026-06-05",
+            "sellUsdAmount": "100.00",
+            "sellExchangeRate": "1200.00",
+            "allocationStrategy": "fifo",
+        },
+    )
+    assert sell_response.status_code == 201, sell_response.text
+    allocation = sell_response.json()["allocations"][0]
+
+    split_delete_response = client.delete(f"/fx/buy-lots/{source['buyLotId']}")
+    assert split_delete_response.status_code == 409
+
+    sold_delete_response = client.delete(f"/fx/buy-lots/{allocation['closedBuyLotId']}")
+    assert sold_delete_response.status_code == 409
+
+    cancel_response = client.post(
+        f"/fx/sell-transactions/{sell_response.json()['sellTransactionId']}/cancel",
+        json={"cancelReason": "delete test"},
+    )
+    assert cancel_response.status_code == 200, cancel_response.text
+
+    cancelled_delete_response = client.delete(
+        f"/fx/buy-lots/{allocation['closedBuyLotId']}"
+    )
+    assert cancelled_delete_response.status_code == 409
+
+
 def test_sell_transaction_split_allocation_and_rollback() -> None:
     require_fx_lot_events_table()
 

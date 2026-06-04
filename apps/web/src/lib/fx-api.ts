@@ -127,6 +127,12 @@ export async function updateBuyLot(
   });
 }
 
+export async function deleteBuyLot(buyLotId: number) {
+  return apiFetch<BuyLot>(`/fx/buy-lots/${buyLotId}`, {
+    method: "DELETE"
+  });
+}
+
 export async function listSellTransactions(
   page = 1,
   size = 20,

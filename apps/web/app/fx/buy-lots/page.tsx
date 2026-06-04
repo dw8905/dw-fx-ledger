@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import { SortableHeader, type SortOrder } from "../../../src/components/sortable-header";
 import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../src/lib/format";
-import { listBuyLots, type BuyLotListResponse } from "../../../src/lib/fx-api";
+import { deleteBuyLot, listBuyLots, type BuyLotListResponse } from "../../../src/lib/fx-api";
 
 function BuyLotsContent() {
   const [data, setData] = useState<BuyLotListResponse | null>(null);
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
+  const [deletingBuyLotId, setDeletingBuyLotId] = useState<number | null>(null);
 
   function handleSort(field: string) {
     if (sortBy !== field) {
@@ -29,13 +30,34 @@ function BuyLotsContent() {
     setSortOrder(null);
   }
 
-  useEffect(() => {
+  const loadBuyLots = useCallback(() => {
     listBuyLots(1, 20, sortBy, sortOrder)
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "매수 로트를 불러오지 못했습니다.")
       );
   }, [sortBy, sortOrder]);
+
+  useEffect(() => {
+    loadBuyLots();
+  }, [loadBuyLots]);
+
+  async function handleDelete(buyLotId: number) {
+    if (!window.confirm("이 매수 로트를 삭제할까요? 삭제 후 기본 목록에서 제외됩니다.")) {
+      return;
+    }
+
+    setError("");
+    setDeletingBuyLotId(buyLotId);
+    try {
+      await deleteBuyLot(buyLotId);
+      await loadBuyLots();
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "매수 로트 삭제에 실패했습니다.");
+    } finally {
+      setDeletingBuyLotId(null);
+    }
+  }
 
   return (
     <main className="content-page">
@@ -96,7 +118,17 @@ function BuyLotsContent() {
                     <td>{formatDateTime(lot.createdAt)}</td>
                     <td>
                       {lot.lotStatus === "open" && lot.isActive ? (
-                        <Link href={`/fx/buy-lots/${lot.buyLotId}/edit`}>수정</Link>
+                        <div className="table-actions">
+                          <Link href={`/fx/buy-lots/${lot.buyLotId}/edit`}>수정</Link>
+                          <button
+                            className="link-button danger-link"
+                            disabled={deletingBuyLotId === lot.buyLotId}
+                            type="button"
+                            onClick={() => void handleDelete(lot.buyLotId)}
+                          >
+                            {deletingBuyLotId === lot.buyLotId ? "삭제 중" : "삭제"}
+                          </button>
+                        </div>
                       ) : (
                         "-"
                       )}

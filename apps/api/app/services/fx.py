@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP
 
-from sqlalchemy import Select, asc, desc, func, select
+from sqlalchemy import Select, asc, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.auth import User
@@ -204,6 +204,72 @@ def update_buy_lot(
     buy_lot.buy_krw_amount = buy_krw_amount
     buy_lot.buy_exchange_rate = normalized_rate
     buy_lot.usd_amount = calculate_usd_amount(buy_krw_amount, normalized_rate)
+    buy_lot.updated_by = current_user.user_id
+    buy_lot.lock_version += 1
+    db.flush()
+    db.refresh(buy_lot)
+    return to_buy_lot_read(buy_lot)
+
+
+def delete_buy_lot(
+    db: Session,
+    *,
+    current_user: User,
+    buy_lot_id: int,
+) -> BuyLotRead | None:
+    buy_lot = db.scalar(
+        select(FxBuyLot)
+        .where(
+            FxBuyLot.buy_lot_id == buy_lot_id,
+            FxBuyLot.user_id == current_user.user_id,
+            FxBuyLot.is_deleted.is_(False),
+        )
+        .with_for_update()
+    )
+    if buy_lot is None:
+        return None
+
+    if buy_lot.lot_status != OPEN or not buy_lot.is_active:
+        raise ValueError("Only active open buy lots can be deleted")
+
+    allocation_count = db.scalar(
+        select(func.count()).select_from(FxLotAllocation).where(
+            or_(
+                FxLotAllocation.source_buy_lot_id == buy_lot_id,
+                FxLotAllocation.closed_buy_lot_id == buy_lot_id,
+                FxLotAllocation.remaining_buy_lot_id == buy_lot_id,
+            )
+        )
+    )
+    if allocation_count:
+        raise ValueError("Buy lots used in allocations cannot be deleted")
+
+    event_count = db.scalar(
+        select(func.count()).select_from(FxLotEvent).where(
+            or_(
+                FxLotEvent.root_buy_lot_id == buy_lot_id,
+                FxLotEvent.source_buy_lot_id == buy_lot_id,
+                FxLotEvent.closed_buy_lot_id == buy_lot_id,
+                FxLotEvent.remaining_buy_lot_id == buy_lot_id,
+                FxLotEvent.restored_buy_lot_id == buy_lot_id,
+            )
+        )
+    )
+    if event_count:
+        raise ValueError("Buy lots with lot events cannot be deleted")
+
+    child_count = db.scalar(
+        select(func.count()).select_from(FxBuyLot).where(
+            FxBuyLot.parent_buy_lot_id == buy_lot_id,
+            FxBuyLot.user_id == current_user.user_id,
+        )
+    )
+    if child_count:
+        raise ValueError("Buy lots with child lots cannot be deleted")
+
+    buy_lot.lot_status = CANCELLED
+    buy_lot.is_active = False
+    buy_lot.is_deleted = True
     buy_lot.updated_by = current_user.user_id
     buy_lot.lock_version += 1
     db.flush()

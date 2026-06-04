@@ -22,6 +22,7 @@ from app.services.fx import (
     cancel_sell_transaction,
     create_buy_lot,
     create_sell_transaction,
+    delete_buy_lot,
     get_buy_lot,
     get_sell_transaction,
     list_buy_lots,
@@ -110,6 +111,29 @@ def update_buy_lot_route(
             buy_exchange_rate=payload.buyExchangeRate,
         )
     except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+    if buy_lot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Buy lot not found")
+
+    db.commit()
+    return buy_lot
+
+
+@router.delete("/buy-lots/{buy_lot_id}", response_model=BuyLotRead)
+def delete_buy_lot_route(
+    buy_lot_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> BuyLotRead:
+    try:
+        buy_lot = delete_buy_lot(
+            db,
+            current_user=current_user,
+            buy_lot_id=buy_lot_id,
+        )
+    except ValueError as error:
+        db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
     if buy_lot is None:
