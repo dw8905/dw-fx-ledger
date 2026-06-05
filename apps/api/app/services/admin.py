@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.auth import User, UserRole
@@ -16,7 +16,14 @@ from app.schemas.admin import (
     AdminUserListItem,
     AdminUserListResponse,
 )
-from app.services.fx import COMPLETED, OPEN
+from app.services.fx import COMPLETED, OPEN, list_ledger
+
+
+def total_pages(total_count: int, size: int) -> int:
+    if total_count == 0:
+        return 0
+
+    return (total_count + size - 1) // size
 
 
 def _role_codes(user: User) -> list[str]:
@@ -35,12 +42,35 @@ def to_admin_user_list_item(user: User) -> AdminUserListItem:
     )
 
 
-def list_admin_users(db: Session, *, page: int, size: int) -> AdminUserListResponse:
-    total_count = db.scalar(select(func.count()).select_from(User).where(User.is_deleted.is_(False)))
+def list_admin_users(
+    db: Session,
+    *,
+    page: int,
+    size: int,
+    keyword: str | None,
+    user_status: str | None,
+    role: str | None,
+) -> AdminUserListResponse:
+    filters = [User.is_deleted.is_(False)]
+    if keyword:
+        pattern = f"%{keyword.strip()}%"
+        filters.append(
+            or_(
+                User.email.ilike(pattern),
+                User.login_id.ilike(pattern),
+                User.display_name.ilike(pattern),
+            )
+        )
+    if user_status:
+        filters.append(User.user_status == user_status)
+    if role:
+        filters.append(User.roles.any(UserRole.role.has(role_code=role)))
+
+    total_count = db.scalar(select(func.count()).select_from(User).where(*filters)) or 0
     users = db.scalars(
         select(User)
         .options(selectinload(User.roles).selectinload(UserRole.role))
-        .where(User.is_deleted.is_(False))
+        .where(*filters)
         .order_by(User.created_at.desc(), User.user_id.desc())
         .offset((page - 1) * size)
         .limit(size)
@@ -49,7 +79,8 @@ def list_admin_users(db: Session, *, page: int, size: int) -> AdminUserListRespo
         items=[to_admin_user_list_item(user) for user in users],
         page=page,
         size=size,
-        total_count=total_count or 0,
+        total_count=total_count,
+        total_pages=total_pages(total_count, size),
     )
 
 
@@ -88,12 +119,27 @@ def get_admin_user_detail(db: Session, *, user_id: int) -> AdminUserDetail | Non
             FxBuyLot.is_deleted.is_(False),
         )
     ) or Decimal("0")
+    total_buy_krw_amount = db.scalar(
+        select(func.coalesce(func.sum(FxBuyLot.buy_krw_amount), 0)).where(
+            FxBuyLot.user_id == user.user_id,
+            FxBuyLot.is_deleted.is_(False),
+        )
+    ) or 0
+    total_buy_usd_amount = db.scalar(
+        select(func.coalesce(func.sum(FxBuyLot.usd_amount), Decimal("0"))).where(
+            FxBuyLot.user_id == user.user_id,
+            FxBuyLot.is_deleted.is_(False),
+        )
+    ) or Decimal("0")
+    ledger_summary = list_ledger(db, current_user=user, period="all").summary
 
     return AdminUserDetail(
         **to_admin_user_list_item(user).model_dump(),
         default_allocation_strategy=user.default_allocation_strategy,
         updated_at=user.updated_at,
         fx_summary=AdminFxSummary(
+            total_buy_krw_amount=total_buy_krw_amount,
+            total_buy_usd_amount=total_buy_usd_amount,
             buy_lot_count=db.scalar(
                 select(func.count()).select_from(FxBuyLot).where(FxBuyLot.user_id == user.user_id)
             )
@@ -119,6 +165,12 @@ def get_admin_user_detail(db: Session, *, user_id: int) -> AdminUserDetail | Non
             or 0,
             total_real_profit_krw=total_real_profit,
             total_display_profit_krw=total_display_profit,
+            final_cumulative_profit_krw=ledger_summary.finalCumulativeProfitKrw,
+            latest_ledger_date=(
+                ledger_summary.latestLedgerDate.isoformat()
+                if ledger_summary.latestLedgerDate is not None
+                else None
+            ),
             open_usd_amount=open_usd_amount,
         ),
     )
@@ -131,14 +183,32 @@ def list_admin_posts(
     size: int,
     include_deleted: bool,
     post_status: str | None,
+    keyword: str | None,
 ) -> AdminPostListResponse:
     filters = []
     if not include_deleted:
         filters.append(BoardPost.is_deleted.is_(False))
     if post_status is not None:
         filters.append(BoardPost.post_status == post_status)
+    if keyword:
+        pattern = f"%{keyword.strip()}%"
+        filters.append(
+            or_(
+                BoardPost.title.ilike(pattern),
+                BoardPost.content.ilike(pattern),
+                User.email.ilike(pattern),
+                User.login_id.ilike(pattern),
+                User.display_name.ilike(pattern),
+            )
+        )
 
-    count_query = select(func.count()).select_from(BoardPost).where(*filters)
+    count_query = (
+        select(func.count())
+        .select_from(BoardPost)
+        .join(User, User.user_id == BoardPost.author_id)
+        .where(*filters)
+    )
+    total_count = db.scalar(count_query) or 0
     rows = db.execute(
         select(BoardPost, User.display_name)
         .join(User, User.user_id == BoardPost.author_id)
@@ -165,7 +235,8 @@ def list_admin_posts(
         ],
         page=page,
         size=size,
-        total_count=db.scalar(count_query) or 0,
+        total_count=total_count,
+        total_pages=total_pages(total_count, size),
     )
 
 
@@ -176,14 +247,20 @@ def list_admin_lot_events(
     size: int,
     user_id: int | None,
     event_type: str | None,
+    sell_transaction_id: int | None,
+    root_buy_lot_id: int | None,
 ) -> AdminLotEventListResponse:
     filters = []
     if user_id is not None:
         filters.append(FxLotEvent.user_id == user_id)
     if event_type is not None:
         filters.append(FxLotEvent.event_type == event_type)
+    if sell_transaction_id is not None:
+        filters.append(FxLotEvent.sell_transaction_id == sell_transaction_id)
+    if root_buy_lot_id is not None:
+        filters.append(FxLotEvent.root_buy_lot_id == root_buy_lot_id)
 
-    count_query = select(func.count()).select_from(FxLotEvent).where(*filters)
+    total_count = db.scalar(select(func.count()).select_from(FxLotEvent).where(*filters)) or 0
     events = db.scalars(
         select(FxLotEvent)
         .where(*filters)
@@ -214,5 +291,6 @@ def list_admin_lot_events(
         ],
         page=page,
         size=size,
-        total_count=db.scalar(count_query) or 0,
+        total_count=total_count,
+        total_pages=total_pages(total_count, size),
     )

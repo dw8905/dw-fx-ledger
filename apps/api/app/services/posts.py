@@ -1,4 +1,4 @@
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.auth import User
@@ -31,14 +31,27 @@ def _base_visible_posts_query() -> Select[tuple[BoardPost, str]]:
     )
 
 
-def list_posts(db: Session, *, page: int, size: int) -> PostListResponse:
+def list_posts(db: Session, *, page: int, size: int, keyword: str | None = None) -> PostListResponse:
+    filters = [BoardPost.is_deleted.is_(False), BoardPost.post_status == PUBLISHED]
+    if keyword:
+        pattern = f"%{keyword.strip()}%"
+        filters.append(
+            or_(
+                BoardPost.title.ilike(pattern),
+                BoardPost.content.ilike(pattern),
+                User.display_name.ilike(pattern),
+            )
+        )
+
     total_count = db.scalar(
         select(func.count())
         .select_from(BoardPost)
-        .where(BoardPost.is_deleted.is_(False), BoardPost.post_status == PUBLISHED)
+        .join(User, User.user_id == BoardPost.author_id)
+        .where(*filters)
     )
     rows = db.execute(
         _base_visible_posts_query()
+        .where(*filters)
         .order_by(BoardPost.created_at.desc(), BoardPost.post_id.desc())
         .offset((page - 1) * size)
         .limit(size)

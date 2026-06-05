@@ -154,6 +154,7 @@ select {
 }
 
 .primary-button,
+.secondary-button,
 .secondary-link,
 .text-button {
   min-height: 38px;
@@ -173,6 +174,18 @@ select {
 .primary-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+.secondary-button {
+  border-color: #b8c6d3;
+  background: #ffffff;
+  color: #1d2b38;
+  font-weight: 700;
+}
+
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .secondary-link {
@@ -203,6 +216,27 @@ select {
   margin: 0 0 16px;
   color: #a92323;
   font-weight: 700;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #d7e0e8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.filter-bar label {
+  min-width: 160px;
+}
+
+.filter-bar input,
+.filter-bar select {
+  width: 100%;
 }
 
 .table-wrap {
@@ -238,10 +272,24 @@ tr:last-child td {
   border-bottom: 0;
 }
 
-.pagination-summary {
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin: 12px 0 0;
   color: #607286;
   font-size: 13px;
+}
+
+.pagination-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.pagination-actions label {
+  min-width: 84px;
 }
 
 .definition-grid,

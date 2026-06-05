@@ -145,7 +145,7 @@ function withSort(path: string, sortBy?: string | null, sortOrder?: SortOrder) {
 
 export async function listBuyLots(
   page = 1,
-  size = 20,
+  size = 10,
   sortBy?: string | null,
   sortOrder?: SortOrder
 ) {
@@ -197,7 +197,7 @@ export async function deleteBuyLot(buyLotId: number) {
 
 export async function listSellTransactions(
   page = 1,
-  size = 20,
+  size = 10,
   sortBy?: string | null,
   sortOrder?: SortOrder
 ) {
@@ -234,7 +234,7 @@ export async function cancelSellTransaction(sellTransactionId: number, cancelRea
   });
 }
 
-export async function listLotEvents(page = 1, size = 50) {
+export async function listLotEvents(page = 1, size = 10) {
   return apiFetch<LotEventListResponse>(`/fx/lot-events?page=${page}&size=${size}`);
 }
 

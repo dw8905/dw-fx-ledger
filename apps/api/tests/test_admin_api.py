@@ -89,6 +89,7 @@ def test_admin_can_list_users_and_regular_user_cannot() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["total_count"] >= 2
+    assert body["total_pages"] >= 1
     listed_user = next(item for item in body["items"] if item["user_id"] == user["user_id"])
     assert listed_user["email"] == user["email"]
     assert "user" in listed_user["roles"]
@@ -98,6 +99,38 @@ def test_admin_can_list_users_and_regular_user_cannot() -> None:
     detail = detail_response.json()
     assert detail["user_id"] == user["user_id"]
     assert "fx_summary" in detail
+
+
+def test_admin_users_pagination_keyword_and_role_filter() -> None:
+    admin_client = TestClient(app)
+    user_client = TestClient(app)
+    admin = register_user(admin_client, uuid4().hex[:12])
+    target_suffix = uuid4().hex[:12]
+    target = register_user(user_client, target_suffix)
+    grant_admin(admin["login_id"])
+
+    page_response = admin_client.get("/admin/users?page=1&size=1")
+    assert page_response.status_code == 200, page_response.text
+    page_body = page_response.json()
+    assert page_body["page"] == 1
+    assert page_body["size"] == 1
+    assert len(page_body["items"]) == 1
+    assert page_body["total_pages"] >= 2
+
+    keyword_response = admin_client.get(f"/admin/users?keyword={target['login_id']}")
+    assert keyword_response.status_code == 200, keyword_response.text
+    keyword_body = keyword_response.json()
+    assert any(item["user_id"] == target["user_id"] for item in keyword_body["items"])
+
+    admin_role_response = admin_client.get("/admin/users?role=admin&page=1&size=100")
+    assert admin_role_response.status_code == 200, admin_role_response.text
+    admin_role_body = admin_role_response.json()
+    assert any(item["user_id"] == admin["user_id"] for item in admin_role_body["items"])
+    assert all("admin" in item["roles"] for item in admin_role_body["items"])
+
+    active_response = admin_client.get("/admin/users?user_status=active&page=1&size=100")
+    assert active_response.status_code == 200, active_response.text
+    assert all(item["user_status"] == "active" for item in active_response.json()["items"])
 
 
 def test_admin_can_list_posts() -> None:
@@ -123,6 +156,50 @@ def test_admin_can_list_posts() -> None:
     assert item["author_id"] == user["user_id"]
     assert item["title"] == "Admin posts list"
     assert item["is_deleted"] is False
+
+
+def test_admin_posts_pagination_search_and_status_filter() -> None:
+    user_client = TestClient(app)
+    admin_client = TestClient(app)
+    register_user(user_client, uuid4().hex[:12])
+    admin = register_user(admin_client, uuid4().hex[:12])
+    grant_admin(admin["login_id"])
+
+    unique = uuid4().hex[:12]
+    first_response = user_client.post(
+        "/posts",
+        json={"title": f"Admin Search {unique}", "content": "visible post body"},
+    )
+    assert first_response.status_code == 201, first_response.text
+    second_response = user_client.post(
+        "/posts",
+        json={"title": f"Admin Deleted {unique}", "content": "deleted post body"},
+    )
+    assert second_response.status_code == 201, second_response.text
+    deleted_post_id = second_response.json()["postId"]
+    delete_response = user_client.delete(f"/posts/{deleted_post_id}")
+    assert delete_response.status_code == 200, delete_response.text
+
+    page_response = admin_client.get("/admin/posts?page=1&size=1&include_deleted=true")
+    assert page_response.status_code == 200, page_response.text
+    page_body = page_response.json()
+    assert page_body["size"] == 1
+    assert len(page_body["items"]) == 1
+    assert page_body["total_pages"] >= 2
+
+    search_response = admin_client.get(f"/admin/posts?keyword={unique}&include_deleted=true")
+    assert search_response.status_code == 200, search_response.text
+    searched_ids = {item["post_id"] for item in search_response.json()["items"]}
+    assert first_response.json()["postId"] in searched_ids
+    assert deleted_post_id in searched_ids
+
+    deleted_response = admin_client.get(
+        f"/admin/posts?keyword={unique}&post_status=deleted&include_deleted=true"
+    )
+    assert deleted_response.status_code == 200, deleted_response.text
+    deleted_body = deleted_response.json()
+    assert any(item["post_id"] == deleted_post_id for item in deleted_body["items"])
+    assert all(item["post_status"] == "deleted" for item in deleted_body["items"])
 
 
 def test_admin_can_read_user_ledger_and_lot_events() -> None:
@@ -172,3 +249,57 @@ def test_admin_can_read_user_ledger_and_lot_events() -> None:
     assert events_body["total_count"] >= 1
     assert all(event["user_id"] == user["user_id"] for event in events_body["items"])
     assert all(event["event_type"] == "sell_transaction_created" for event in events_body["items"])
+
+
+def test_admin_lot_events_pagination_and_extra_filters() -> None:
+    require_fx_lot_events_table()
+
+    user_client = TestClient(app)
+    admin_client = TestClient(app)
+    user = register_user(user_client, uuid4().hex[:12])
+    admin = register_user(admin_client, uuid4().hex[:12])
+    grant_admin(admin["login_id"])
+
+    buy_response = user_client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2025-03-06",
+            "buyKrwAmount": 2000000,
+            "buyExchangeRate": "1000.00",
+        },
+    )
+    assert buy_response.status_code == 201, buy_response.text
+    root_buy_lot_id = buy_response.json()["buyLotId"]
+    sell_response = user_client.post(
+        "/fx/sell-transactions",
+        json={
+            "sellDate": "2026-06-04",
+            "sellUsdAmount": "10.00",
+            "sellExchangeRate": "1300.00",
+            "allocationStrategy": "fifo",
+        },
+    )
+    assert sell_response.status_code == 201, sell_response.text
+    sell_transaction_id = sell_response.json()["sellTransactionId"]
+
+    page_response = admin_client.get("/admin/fx/lot-events?page=1&size=1")
+    assert page_response.status_code == 200, page_response.text
+    page_body = page_response.json()
+    assert page_body["size"] == 1
+    assert len(page_body["items"]) == 1
+    assert page_body["total_pages"] >= 1
+
+    filtered_response = admin_client.get(
+        "/admin/fx/lot-events"
+        f"?user_id={user['user_id']}"
+        f"&sell_transaction_id={sell_transaction_id}"
+        f"&root_buy_lot_id={root_buy_lot_id}"
+    )
+    assert filtered_response.status_code == 200, filtered_response.text
+    filtered_body = filtered_response.json()
+    assert filtered_body["total_count"] >= 1
+    assert all(event["user_id"] == user["user_id"] for event in filtered_body["items"])
+    assert all(
+        event["sell_transaction_id"] == sell_transaction_id for event in filtered_body["items"]
+    )
+    assert all(event["root_buy_lot_id"] == root_buy_lot_id for event in filtered_body["items"])

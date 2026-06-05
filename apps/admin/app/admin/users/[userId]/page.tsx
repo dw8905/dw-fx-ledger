@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { AdminGuard } from "../../../../src/components/admin-guard";
 import { AdminShell } from "../../../../src/components/admin-shell";
 import { getUser, type AdminUserDetail } from "../../../../src/lib/admin-api";
-import { formatDateTime, formatKrw, formatNumber, formatUsd } from "../../../../src/lib/format";
+import { formatDate, formatDateTime, formatKrw, formatNumber, formatUsd } from "../../../../src/lib/format";
 
 function UserDetailContent() {
   const params = useParams<{ userId: string }>();
@@ -74,6 +74,14 @@ function UserDetailContent() {
             </section>
             <section className="metric-grid">
               <div>
+                <span>총 매수 원화</span>
+                <strong>{formatKrw(user.fx_summary.total_buy_krw_amount)}</strong>
+              </div>
+              <div>
+                <span>총 매수 USD</span>
+                <strong>{formatUsd(user.fx_summary.total_buy_usd_amount)}</strong>
+              </div>
+              <div>
                 <span>매수 lot</span>
                 <strong>{formatNumber(user.fx_summary.buy_lot_count)}</strong>
               </div>
@@ -96,6 +104,18 @@ function UserDetailContent() {
               <div>
                 <span>표시손익</span>
                 <strong>{formatKrw(user.fx_summary.total_display_profit_krw)}</strong>
+              </div>
+              <div>
+                <span>최종 누적수익</span>
+                <strong>{formatKrw(user.fx_summary.final_cumulative_profit_krw)}</strong>
+              </div>
+              <div>
+                <span>마지막 원장일</span>
+                <strong>
+                  {user.fx_summary.latest_ledger_date
+                    ? formatDate(user.fx_summary.latest_ledger_date)
+                    : ""}
+                </strong>
               </div>
               <div>
                 <span>open USD</span>

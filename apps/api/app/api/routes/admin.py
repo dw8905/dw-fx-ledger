@@ -37,9 +37,19 @@ def list_users_route(
     db: Annotated[Session, Depends(get_db)],
     _admin_user: Annotated[User, Depends(require_admin)],
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 20,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    keyword: str | None = None,
+    user_status: str | None = None,
+    role: str | None = None,
 ) -> AdminUserListResponse:
-    return list_admin_users(db, page=page, size=size)
+    return list_admin_users(
+        db,
+        page=page,
+        size=size,
+        keyword=keyword,
+        user_status=user_status,
+        role=role,
+    )
 
 
 @router.get("/users/{user_id}", response_model=AdminUserDetail)
@@ -60,9 +70,10 @@ def list_posts_route(
     db: Annotated[Session, Depends(get_db)],
     _admin_user: Annotated[User, Depends(require_admin)],
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 20,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
     include_deleted: bool = False,
     post_status: str | None = None,
+    keyword: str | None = None,
 ) -> AdminPostListResponse:
     return list_admin_posts(
         db,
@@ -70,6 +81,7 @@ def list_posts_route(
         size=size,
         include_deleted=include_deleted,
         post_status=post_status,
+        keyword=keyword,
     )
 
 
@@ -97,9 +109,11 @@ def list_lot_events_route(
     db: Annotated[Session, Depends(get_db)],
     _admin_user: Annotated[User, Depends(require_admin)],
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
     user_id: int | None = None,
     event_type: str | None = None,
+    sell_transaction_id: int | None = None,
+    root_buy_lot_id: int | None = None,
 ) -> AdminLotEventListResponse:
     return list_admin_lot_events(
         db,
@@ -107,4 +121,6 @@ def list_lot_events_route(
         size=size,
         user_id=user_id,
         event_type=event_type,
+        sell_transaction_id=sell_transaction_id,
+        root_buy_lot_id=root_buy_lot_id,
     )

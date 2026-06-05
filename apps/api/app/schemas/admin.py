@@ -21,15 +21,20 @@ class AdminUserListResponse(BaseModel):
     page: int
     size: int
     total_count: int
+    total_pages: int
 
 
 class AdminFxSummary(BaseModel):
+    total_buy_krw_amount: int
+    total_buy_usd_amount: Decimal
     buy_lot_count: int
     open_lot_count: int
     sell_transaction_count: int
     lot_event_count: int
     total_real_profit_krw: int
     total_display_profit_krw: int
+    final_cumulative_profit_krw: int
+    latest_ledger_date: str | None
     open_usd_amount: Decimal
 
 
@@ -56,6 +61,7 @@ class AdminPostListResponse(BaseModel):
     page: int
     size: int
     total_count: int
+    total_pages: int
 
 
 class AdminLotEventRead(BaseModel):
@@ -80,6 +86,7 @@ class AdminLotEventListResponse(BaseModel):
     page: int
     size: int
     total_count: int
+    total_pages: int
 
 
 class AdminUserLedgerResponse(BaseModel):

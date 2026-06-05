@@ -40,7 +40,7 @@ def test_posts_crud_and_permissions() -> None:
     assert list_response.status_code == 200, list_response.text
     list_body = list_response.json()
     assert list_body["page"] == 1
-    assert list_body["size"] == 20
+    assert list_body["size"] == 10
     assert list_body["totalCount"] >= 1
     assert any(item["postId"] == post_id for item in list_body["items"])
 
@@ -109,6 +109,37 @@ def test_post_view_count_increments_once_per_detail_request() -> None:
     second_detail_response = client.get(f"/posts/{post_id}")
     assert second_detail_response.status_code == 200, second_detail_response.text
     assert second_detail_response.json()["viewCount"] == 2
+
+
+def test_posts_list_pagination_and_keyword_search() -> None:
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+    unique = uuid4().hex[:12]
+
+    first_response = client.post(
+        "/posts",
+        json={"title": f"검색 대상 {unique}", "content": "첫 번째 검색 본문"},
+    )
+    assert first_response.status_code == 201, first_response.text
+    second_response = client.post(
+        "/posts",
+        json={"title": f"다른 제목 {unique}", "content": f"본문 키워드 {unique}"},
+    )
+    assert second_response.status_code == 201, second_response.text
+
+    page_response = client.get("/posts?page=1&size=1")
+    assert page_response.status_code == 200, page_response.text
+    page_body = page_response.json()
+    assert page_body["page"] == 1
+    assert page_body["size"] == 1
+    assert len(page_body["items"]) == 1
+    assert page_body["totalCount"] >= 2
+
+    search_response = client.get(f"/posts?keyword={unique}&page=1&size=20")
+    assert search_response.status_code == 200, search_response.text
+    searched_ids = {item["postId"] for item in search_response.json()["items"]}
+    assert first_response.json()["postId"] in searched_ids
+    assert second_response.json()["postId"] in searched_ids
 
 
 def test_posts_openapi_paths() -> None:

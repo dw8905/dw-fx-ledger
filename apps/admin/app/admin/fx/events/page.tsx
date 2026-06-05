@@ -1,26 +1,68 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AdminGuard } from "../../../../src/components/admin-guard";
 import { AdminShell } from "../../../../src/components/admin-shell";
+import { Pagination } from "../../../../src/components/pagination";
 import { listLotEvents, type AdminLotEvent, type Paginated } from "../../../../src/lib/admin-api";
-import { formatDateTime, formatNumber } from "../../../../src/lib/format";
+import { formatDateTime } from "../../../../src/lib/format";
+
+type EventFilters = {
+  userId: string;
+  eventType: string;
+  sellTransactionId: string;
+  rootBuyLotId: string;
+};
+
+const emptyFilters: EventFilters = {
+  userId: "",
+  eventType: "",
+  sellTransactionId: "",
+  rootBuyLotId: ""
+};
+
+const eventTypes = [
+  "sell_transaction_created",
+  "lot_split",
+  "sell_transaction_cancelled",
+  "lot_restored"
+];
 
 function EventsContent() {
-  const [userId, setUserId] = useState("");
-  const [eventType, setEventType] = useState("");
-  const [filters, setFilters] = useState({ userId: "", eventType: "" });
+  const [draftFilters, setDraftFilters] = useState<EventFilters>(emptyFilters);
+  const [filters, setFilters] = useState<EventFilters>(emptyFilters);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
   const [data, setData] = useState<Paginated<AdminLotEvent> | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    listLotEvents(filters)
+    listLotEvents({
+      page,
+      size,
+      userId: filters.userId,
+      eventType: filters.eventType,
+      sellTransactionId: filters.sellTransactionId,
+      rootBuyLotId: filters.rootBuyLotId
+    })
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "이벤트 로그를 불러오지 못했습니다.")
       );
-  }, [filters]);
+  }, [filters, page, size]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setFilters(draftFilters);
+  }
+
+  function resetFilters() {
+    setDraftFilters(emptyFilters);
+    setFilters(emptyFilters);
+    setPage(1);
+  }
 
   return (
     <AdminShell>
@@ -30,26 +72,61 @@ function EventsContent() {
             <p className="eyebrow">FX Events</p>
             <h1>fx_lot_events</h1>
           </div>
-          <form
-            className="inline-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setFilters({ userId, eventType });
-            }}
-          >
-            <label>
-              user_id
-              <input value={userId} onChange={(event) => setUserId(event.target.value)} />
-            </label>
-            <label>
-              event_type
-              <input value={eventType} onChange={(event) => setEventType(event.target.value)} />
-            </label>
-            <button className="primary-button" type="submit">
-              조회
-            </button>
-          </form>
         </section>
+        <form className="filter-bar" onSubmit={handleSubmit}>
+          <label>
+            user_id
+            <input
+              value={draftFilters.userId}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, userId: event.target.value }))
+              }
+            />
+          </label>
+          <label>
+            event_type
+            <select
+              value={draftFilters.eventType}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, eventType: event.target.value }))
+              }
+            >
+              <option value="">전체</option>
+              {eventTypes.map((eventType) => (
+                <option key={eventType} value={eventType}>
+                  {eventType}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            sell_transaction_id
+            <input
+              value={draftFilters.sellTransactionId}
+              onChange={(event) =>
+                setDraftFilters((current) => ({
+                  ...current,
+                  sellTransactionId: event.target.value
+                }))
+              }
+            />
+          </label>
+          <label>
+            root_buy_lot_id
+            <input
+              value={draftFilters.rootBuyLotId}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, rootBuyLotId: event.target.value }))
+              }
+            />
+          </label>
+          <button className="primary-button" type="submit">
+            검색
+          </button>
+          <button className="secondary-button" type="button" onClick={resetFilters}>
+            초기화
+          </button>
+        </form>
         {error ? <p className="form-error">{error}</p> : null}
         {!data ? (
           <p>이벤트 로그를 불러오는 중입니다.</p>
@@ -85,9 +162,17 @@ function EventsContent() {
                 </tbody>
               </table>
             </div>
-            <p className="pagination-summary">
-              page {data.page} / size {data.size} / total {formatNumber(data.total_count)}
-            </p>
+            <Pagination
+              page={data.page}
+              size={data.size}
+              totalCount={data.total_count}
+              totalPages={data.total_pages}
+              onPageChange={setPage}
+              onSizeChange={(nextSize) => {
+                setSize(nextSize);
+                setPage(1);
+              }}
+            />
           </>
         )}
       </main>

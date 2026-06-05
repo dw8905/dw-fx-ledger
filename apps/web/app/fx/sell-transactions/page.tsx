@@ -34,7 +34,7 @@ function SellTransactionsContent() {
   }
 
   useEffect(() => {
-    listSellTransactions(1, 20, sortBy, sortOrder)
+    listSellTransactions(1, 10, sortBy, sortOrder)
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "매도 거래를 불러오지 못했습니다.")

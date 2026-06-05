@@ -1,24 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AdminGuard } from "../../../src/components/admin-guard";
 import { AdminShell } from "../../../src/components/admin-shell";
+import { Pagination } from "../../../src/components/pagination";
 import { listPosts, type AdminPost, type Paginated } from "../../../src/lib/admin-api";
 import { formatDateTime, formatNumber } from "../../../src/lib/format";
 
+type PostFilters = {
+  keyword: string;
+  postStatus: string;
+  includeDeleted: boolean;
+};
+
+const initialFilters: PostFilters = {
+  keyword: "",
+  postStatus: "",
+  includeDeleted: true
+};
+
 function PostsContent() {
-  const [includeDeleted, setIncludeDeleted] = useState(true);
+  const [draftFilters, setDraftFilters] = useState<PostFilters>(initialFilters);
+  const [filters, setFilters] = useState<PostFilters>(initialFilters);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
   const [data, setData] = useState<Paginated<AdminPost> | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    listPosts({ includeDeleted })
+    listPosts({
+      page,
+      size,
+      includeDeleted: filters.includeDeleted,
+      keyword: filters.keyword,
+      postStatus: filters.postStatus
+    })
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "게시글 목록을 불러오지 못했습니다.")
       );
-  }, [includeDeleted]);
+  }, [filters, page, size]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setFilters(draftFilters);
+  }
+
+  function resetFilters() {
+    setDraftFilters(initialFilters);
+    setFilters(initialFilters);
+    setPage(1);
+  }
 
   return (
     <AdminShell>
@@ -28,15 +62,48 @@ function PostsContent() {
             <p className="eyebrow">Posts</p>
             <h1>게시글 관리 목록</h1>
           </div>
+        </section>
+        <form className="filter-bar" onSubmit={handleSubmit}>
+          <label>
+            검색
+            <input
+              placeholder="제목, 내용, 작성자"
+              value={draftFilters.keyword}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, keyword: event.target.value }))
+              }
+            />
+          </label>
+          <label>
+            상태
+            <select
+              value={draftFilters.postStatus}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, postStatus: event.target.value }))
+              }
+            >
+              <option value="">전체</option>
+              <option value="published">published</option>
+              <option value="deleted">deleted</option>
+            </select>
+          </label>
           <label className="check-control">
             <input
-              checked={includeDeleted}
+              checked={draftFilters.includeDeleted}
               type="checkbox"
-              onChange={(event) => setIncludeDeleted(event.target.checked)}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, includeDeleted: event.target.checked }))
+              }
             />
             삭제글 포함
           </label>
-        </section>
+          <button className="primary-button" type="submit">
+            검색
+          </button>
+          <button className="secondary-button" type="button" onClick={resetFilters}>
+            초기화
+          </button>
+        </form>
         {error ? <p className="form-error">{error}</p> : null}
         {!data ? (
           <p>게시글을 불러오는 중입니다.</p>
@@ -72,9 +139,17 @@ function PostsContent() {
                 </tbody>
               </table>
             </div>
-            <p className="pagination-summary">
-              page {data.page} / size {data.size} / total {formatNumber(data.total_count)}
-            </p>
+            <Pagination
+              page={data.page}
+              size={data.size}
+              totalCount={data.total_count}
+              totalPages={data.total_pages}
+              onPageChange={setPage}
+              onSizeChange={(nextSize) => {
+                setSize(nextSize);
+                setPage(1);
+              }}
+            />
           </>
         )}
       </main>

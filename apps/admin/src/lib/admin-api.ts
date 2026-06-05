@@ -14,12 +14,16 @@ export type AdminUserDetail = AdminUserListItem & {
   default_allocation_strategy: string;
   updated_at: string;
   fx_summary: {
+    total_buy_krw_amount: number;
+    total_buy_usd_amount: string;
     buy_lot_count: number;
     open_lot_count: number;
     sell_transaction_count: number;
     lot_event_count: number;
     total_real_profit_krw: number;
     total_display_profit_krw: number;
+    final_cumulative_profit_krw: number;
+    latest_ledger_date: string | null;
     open_usd_amount: string;
   };
 };
@@ -29,6 +33,7 @@ export type Paginated<T> = {
   page: number;
   size: number;
   total_count: number;
+  total_pages: number;
 };
 
 export type AdminPost = {
@@ -97,31 +102,78 @@ export type AdminLotEvent = {
   created_at: string;
 };
 
-export function listUsers(page = 1, size = 20) {
-  return apiFetch<Paginated<AdminUserListItem>>(`/admin/users?page=${page}&size=${size}`);
+export function listUsers(options: {
+  page?: number;
+  size?: number;
+  keyword?: string;
+  userStatus?: string;
+  role?: string;
+} = {}) {
+  const params = new URLSearchParams();
+  params.set("page", String(options.page ?? 1));
+  params.set("size", String(options.size ?? 10));
+  if (options.keyword) {
+    params.set("keyword", options.keyword);
+  }
+  if (options.userStatus) {
+    params.set("user_status", options.userStatus);
+  }
+  if (options.role) {
+    params.set("role", options.role);
+  }
+  return apiFetch<Paginated<AdminUserListItem>>(`/admin/users?${params}`);
 }
 
 export function getUser(userId: number) {
   return apiFetch<AdminUserDetail>(`/admin/users/${userId}`);
 }
 
-export function listPosts(options: { includeDeleted?: boolean } = {}) {
-  const includeDeleted = options.includeDeleted ? "true" : "false";
-  return apiFetch<Paginated<AdminPost>>(`/admin/posts?include_deleted=${includeDeleted}`);
+export function listPosts(options: {
+  page?: number;
+  size?: number;
+  includeDeleted?: boolean;
+  keyword?: string;
+  postStatus?: string;
+} = {}) {
+  const params = new URLSearchParams();
+  params.set("page", String(options.page ?? 1));
+  params.set("size", String(options.size ?? 10));
+  params.set("include_deleted", options.includeDeleted ? "true" : "false");
+  if (options.keyword) {
+    params.set("keyword", options.keyword);
+  }
+  if (options.postStatus) {
+    params.set("post_status", options.postStatus);
+  }
+  return apiFetch<Paginated<AdminPost>>(`/admin/posts?${params}`);
 }
 
 export function getUserLedger(userId: number, period: string) {
   return apiFetch<AdminUserLedger>(`/admin/fx/users/${userId}/ledger?period=${period}`);
 }
 
-export function listLotEvents(options: { userId?: string; eventType?: string } = {}) {
+export function listLotEvents(options: {
+  page?: number;
+  size?: number;
+  userId?: string;
+  eventType?: string;
+  sellTransactionId?: string;
+  rootBuyLotId?: string;
+} = {}) {
   const params = new URLSearchParams();
+  params.set("page", String(options.page ?? 1));
+  params.set("size", String(options.size ?? 10));
   if (options.userId) {
     params.set("user_id", options.userId);
   }
   if (options.eventType) {
     params.set("event_type", options.eventType);
   }
-  const query = params.toString();
-  return apiFetch<Paginated<AdminLotEvent>>(`/admin/fx/lot-events${query ? `?${query}` : ""}`);
+  if (options.sellTransactionId) {
+    params.set("sell_transaction_id", options.sellTransactionId);
+  }
+  if (options.rootBuyLotId) {
+    params.set("root_buy_lot_id", options.rootBuyLotId);
+  }
+  return apiFetch<Paginated<AdminLotEvent>>(`/admin/fx/lot-events?${params}`);
 }

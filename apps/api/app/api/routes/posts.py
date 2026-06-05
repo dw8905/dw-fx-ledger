@@ -31,9 +31,10 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 def list_post_route(
     db: Annotated[Session, Depends(get_db)],
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 20,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    keyword: str | None = None,
 ) -> PostListResponse:
-    return list_posts(db, page=page, size=size)
+    return list_posts(db, page=page, size=size, keyword=keyword)
 
 
 @router.get("/{post_id}", response_model=PostDetailResponse)

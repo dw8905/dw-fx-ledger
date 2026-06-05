@@ -27,8 +27,15 @@ export type PostDetail = {
   updatedAt: string;
 };
 
-export async function listPosts(page = 1, size = 20) {
-  return apiFetch<PostListResponse>(`/posts?page=${page}&size=${size}`, {
+export async function listPosts(page = 1, size = 10, keyword = "") {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size)
+  });
+  if (keyword) {
+    params.set("keyword", keyword);
+  }
+  return apiFetch<PostListResponse>(`/posts?${params}`, {
     skipRefresh: true
   });
 }

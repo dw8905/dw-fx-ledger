@@ -1,23 +1,59 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AdminGuard } from "../../../src/components/admin-guard";
 import { AdminShell } from "../../../src/components/admin-shell";
+import { Pagination } from "../../../src/components/pagination";
 import { listUsers, type AdminUserListItem, type Paginated } from "../../../src/lib/admin-api";
-import { formatDateTime, formatNumber } from "../../../src/lib/format";
+import { formatDateTime } from "../../../src/lib/format";
+
+type UserFilters = {
+  keyword: string;
+  userStatus: string;
+  role: string;
+};
+
+const emptyFilters: UserFilters = {
+  keyword: "",
+  userStatus: "",
+  role: ""
+};
 
 function UsersContent() {
+  const [draftFilters, setDraftFilters] = useState<UserFilters>(emptyFilters);
+  const [filters, setFilters] = useState<UserFilters>(emptyFilters);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
   const [data, setData] = useState<Paginated<AdminUserListItem> | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    listUsers(1, 50)
+    setError("");
+    listUsers({
+      page,
+      size,
+      keyword: filters.keyword,
+      userStatus: filters.userStatus,
+      role: filters.role
+    })
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "사용자 목록을 불러오지 못했습니다.")
       );
-  }, []);
+  }, [filters, page, size]);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setFilters(draftFilters);
+  }
+
+  function resetFilters() {
+    setDraftFilters(emptyFilters);
+    setFilters(emptyFilters);
+    setPage(1);
+  }
 
   return (
     <AdminShell>
@@ -28,6 +64,51 @@ function UsersContent() {
             <h1>사용자 목록</h1>
           </div>
         </section>
+        <form className="filter-bar" onSubmit={handleSubmit}>
+          <label>
+            검색
+            <input
+              placeholder="email, login_id, 이름"
+              value={draftFilters.keyword}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, keyword: event.target.value }))
+              }
+            />
+          </label>
+          <label>
+            상태
+            <select
+              value={draftFilters.userStatus}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, userStatus: event.target.value }))
+              }
+            >
+              <option value="">전체</option>
+              <option value="active">active</option>
+              <option value="locked">locked</option>
+              <option value="withdrawn">withdrawn</option>
+            </select>
+          </label>
+          <label>
+            role
+            <select
+              value={draftFilters.role}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, role: event.target.value }))
+              }
+            >
+              <option value="">전체</option>
+              <option value="user">user</option>
+              <option value="admin">admin</option>
+            </select>
+          </label>
+          <button className="primary-button" type="submit">
+            검색
+          </button>
+          <button className="secondary-button" type="button" onClick={resetFilters}>
+            초기화
+          </button>
+        </form>
         {error ? <p className="form-error">{error}</p> : null}
         {!data ? (
           <p>사용자를 불러오는 중입니다.</p>
@@ -63,9 +144,17 @@ function UsersContent() {
                 </tbody>
               </table>
             </div>
-            <p className="pagination-summary">
-              page {data.page} / size {data.size} / total {formatNumber(data.total_count)}
-            </p>
+            <Pagination
+              page={data.page}
+              size={data.size}
+              totalCount={data.total_count}
+              totalPages={data.total_pages}
+              onPageChange={setPage}
+              onSizeChange={(nextSize) => {
+                setSize(nextSize);
+                setPage(1);
+              }}
+            />
           </>
         )}
       </main>

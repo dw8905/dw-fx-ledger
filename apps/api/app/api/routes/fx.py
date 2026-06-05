@@ -62,7 +62,7 @@ def list_buy_lots_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 20,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
     lot_status: str | None = None,
     is_active: bool | None = None,
     sort_by: str | None = None,
@@ -214,7 +214,7 @@ def list_lot_events_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 50,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
     root_buy_lot_id: int | None = None,
     sell_transaction_id: int | None = None,
 ) -> LotEventListResponse:
@@ -233,7 +233,7 @@ def list_sell_transactions_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=100)] = 20,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
     sort_by: str | None = None,
     sort_order: str | None = None,
 ) -> SellTransactionListResponse:
