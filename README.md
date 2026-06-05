@@ -1,57 +1,262 @@
 # DW FX Ledger
 
-외화 환전 로트 관리 및 환차익 계산 서비스를 위한 모노레포입니다.
+FX Ledger는 외화 매수/매도 로트를 관리하고 환차익을 계산하는 서비스입니다.
 
-현재 단계는 프로젝트 구조만 준비한 초기 스캐폴딩 상태입니다. 비즈니스 로직, DB 테이블, 실제 PostgreSQL 연결은 아직 구현하지 않았습니다.
+매수 로트 등록부터 부분매도, 다중 로트 차감, 매도 취소, 이벤트 이력, 엑셀형 원장 조회까지 지원합니다. 현재 구현은 개인/소규모 운영자가 외화 환전 내역을 실제 로트 단위로 추적하고 검산하는 MVP에 초점을 둡니다.
 
-## Tech Stack
+## 기술 스택
 
-- Frontend: Next.js + TypeScript
-- Admin: Next.js + TypeScript
-- Backend: FastAPI
-- Database: PostgreSQL
-- ORM: SQLAlchemy
-- Migration: Alembic
-- Package manager: pnpm
-- Python environment: uv
-- Container: Docker Compose
+Frontend
 
-## Project Structure
+- Next.js
+- TypeScript
+- pnpm workspace
+
+Backend
+
+- FastAPI
+- SQLAlchemy
+- Alembic
+- uv
+
+DB
+
+- PostgreSQL
+
+Auth
+
+- HttpOnly Cookie 기반 JWT Access Token / Refresh Token
+
+## 모노레포 구조
 
 ```text
 apps/
   web/      # 사용자용 Next.js 앱
   admin/    # 관리자용 Next.js 앱
-  api/      # FastAPI 앱
+  api/      # FastAPI 백엔드
+
 packages/
   shared/   # 공유 TypeScript 패키지
 ```
 
-## Getting Started
+- `apps/web`: 로그인, 게시판, FX 매수/매도, 원장, Dev Lab 화면을 제공합니다.
+- `apps/admin`: 관리자용 Next.js 앱 스캐폴드입니다. 본격적인 Admin 기능은 향후 확장 예정입니다.
+- `apps/api`: 인증, 게시판, FX 비즈니스 로직, SQLAlchemy 모델, Alembic migration, pytest를 포함합니다.
+- `packages/shared`: web/admin에서 공유할 TypeScript 코드의 위치입니다.
 
-### Install JavaScript dependencies
+## 구현 완료 기능
+
+인증
+
+- 회원가입
+- 로그인
+- 로그아웃
+- 토큰 재발급
+- 현재 사용자 조회
+- HttpOnly Cookie 기반 인증 유지
+
+게시판
+
+- 게시글 목록
+- 게시글 상세
+- 게시글 작성
+- 게시글 수정
+- 게시글 삭제
+- 조회수 증가
+
+FX 매수
+
+- 매수 로트 등록
+- 매수 로트 수정
+- 매수 로트 삭제
+- 삭제는 hard delete가 아니라 soft delete로 처리합니다.
+
+FX 매도
+
+- 부분매도
+- 다중 로트 차감
+- `highest_rate_first`
+- `fifo`
+- `lifo`
+- `manual allocation`
+
+매도 취소
+
+- 최신 매도만 취소 가능
+- 연속 취소 가능
+- 중간 매도 단독 취소 불가
+
+이벤트
+
+- `fx_lot_events`에 매도 생성, 로트 분할, 매도 취소, 로트 복원 이벤트를 기록합니다.
+
+원장
+
+- `/fx/ledger`
+- 엑셀형 검산 화면
+- open 매수 로트와 sold allocation row를 합쳐 조회합니다.
+- 누적수익과 환율차이평균은 전체 원장 고정 정렬 기준으로 계산합니다.
+
+Dev Lab
+
+- `/fx/dev-lab`
+- 최근 매도 거래와 로트 이벤트를 확인하는 개발/검증용 화면입니다.
+
+## 핵심 비즈니스 규칙
+
+### 매수 로트 상태
+
+`open`
+
+- 아직 매도에 사용 가능한 활성 매수 로트입니다.
+- 매도 allocation의 source가 될 수 있습니다.
+- 수정/삭제는 `open + active + not deleted` 상태에서만 제한적으로 가능합니다.
+
+`split`
+
+- 매도 처리로 인해 원본 로트가 분할된 상태입니다.
+- 원본 row의 금액을 직접 수정하지 않고 비활성화합니다.
+- 이력 추적을 위해 source lot으로 남깁니다.
+
+`sold`
+
+- 매도된 부분을 나타내는 새 로트입니다.
+- `fx_lot_allocations.closed_buy_lot_id`로 참조됩니다.
+
+`cancelled`
+
+- 매수 로트 soft delete 또는 매도 취소 과정에서 비활성 처리된 로트입니다.
+- hard delete 대신 이력 보존을 우선합니다.
+
+### 매도 처리 흐름
+
+```text
+source lot
+  ↓
+split 상태로 비활성화
+  ↓
+sold lot 생성
+  ↓
+remaining lot 생성
+  ↓
+allocation 생성
+  ↓
+event 생성
+```
+
+원본 로트는 금액을 직접 줄이지 않습니다. source lot은 `split`으로 남기고, 매도분은 `sold lot`, 잔여분은 `remaining open lot`으로 새로 생성합니다. 이렇게 해야 부분매도와 취소 이력을 추적할 수 있습니다.
+
+### Allocation 전략
+
+`highest_rate_first`
+
+- 매수환율이 가장 높은 open lot부터 차감합니다.
+
+`fifo`
+
+- 오래된 매수일 순서로 차감합니다.
+
+`lifo`
+
+- 최근 매수일 순서로 차감합니다.
+
+`manual`
+
+- 사용자가 매수 로트를 직접 선택하고 각 로트별 차감 USD를 입력합니다.
+- 선택한 USD 합계가 매도 USD와 같아야 합니다.
+- backend에서도 소유자, 상태, 중복, 잔액 초과를 다시 검증합니다.
+
+### 매도 취소 흐름
+
+```text
+sell transaction cancelled
+  ↓
+sold lot cancelled
+  ↓
+remaining lot cancelled
+  ↓
+restored open lot 생성
+  ↓
+event 기록
+```
+
+매도 취소는 수정/삭제가 아니라 반대 이벤트를 만드는 방식입니다. 중간 매도를 단독 취소하면 이후 allocation 계보가 깨질 수 있으므로 root lot 계보 기준 최신 매도부터만 취소할 수 있습니다.
+
+## DB 주요 테이블
+
+`users`
+
+- 사용자 계정, 로그인 식별자, 기본 allocation 전략을 저장합니다.
+
+`roles`
+
+- 역할 코드와 역할명을 저장합니다.
+
+`user_roles`
+
+- 사용자와 역할의 다대다 매핑입니다.
+
+`refresh_tokens`
+
+- Refresh Token hash, 만료일, revoke 상태를 저장합니다.
+
+`board_posts`
+
+- 게시판 게시글입니다.
+
+`fx_buy_lots`
+
+- 매수 로트입니다.
+- 원본, sold, remaining, restored lot이 모두 이 테이블에 저장됩니다.
+- `parent_buy_lot_id`, `root_buy_lot_id`로 로트 계보를 추적합니다.
+
+`fx_sell_transactions`
+
+- 매도 거래 헤더입니다.
+- 매도일, 매도 USD, 매도환율, 전략, 거래 상태, 총 손익을 저장합니다.
+
+`fx_lot_allocations`
+
+- 매도 거래가 어떤 매수 로트를 얼마나 차감했는지 기록합니다.
+- allocation 1건은 원장 화면의 sold row 1건과 대응됩니다.
+
+`fx_lot_events`
+
+- 로트 분할, 매도 생성, 매도 취소, 로트 복원 이벤트를 저장합니다.
+- 감사 추적과 취소 검증을 위한 이력 테이블입니다.
+
+## 실행 방법
+
+### 사전 준비
+
+- Node.js
+- pnpm
+- Python 3.12+
+- uv
+- Docker / Docker Compose
+
+### JavaScript 의존성 설치
 
 ```bash
 pnpm install
 ```
 
-### Run web app
+### PostgreSQL 실행
 
 ```bash
-pnpm dev:web
+docker compose up -d postgres
 ```
 
-Web app: http://localhost:3000
+기본 compose 설정:
 
-### Run admin app
+- DB: `dw_fx_ledger`
+- User: `dw_fx_ledger`
+- Password: `change_me`
+- Port: `5432`
 
-```bash
-pnpm dev:admin
-```
+로컬 환경 변수는 `.env.example`을 참고해 각 앱의 `.env`에 설정합니다. `.env` 파일은 커밋하지 않습니다.
 
-Admin app: http://localhost:3001
-
-### Run API
+### Backend 실행
 
 ```bash
 cd apps/api
@@ -59,20 +264,115 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
-API: http://localhost:8000
+API:
 
-Health check: http://localhost:8000/health
+- http://127.0.0.1:8000
+- http://127.0.0.1:8000/docs
+- http://127.0.0.1:8000/health
 
-### Run PostgreSQL container
+### Alembic migration
 
 ```bash
-docker compose up -d postgres
+cd apps/api
+uv run alembic upgrade head
 ```
 
-The compose file only provides a PostgreSQL container scaffold. The API does not connect to PostgreSQL yet.
+현재 migration은 인증, 게시판, FX 매수/매도/allocation/event 테이블을 생성합니다.
 
-## Environment Variables
+### Frontend 실행
 
-Create local environment files only when needed. Do not commit `.env` files.
+```bash
+pnpm dev:web
+```
 
-Use `.env.example` as the reference for expected variables.
+Web:
+
+- http://localhost:3000
+
+### Admin 실행
+
+```bash
+pnpm dev:admin
+```
+
+Admin:
+
+- http://localhost:3001
+
+### Web + Admin 동시 실행
+
+```bash
+pnpm dev
+```
+
+## 테스트 방법
+
+Backend lint
+
+```bash
+cd apps/api
+uv run ruff check app tests
+```
+
+Backend tests
+
+```bash
+cd apps/api
+uv run pytest -q
+```
+
+Frontend typecheck
+
+```bash
+pnpm --filter @dw-fx-ledger/web typecheck
+```
+
+Frontend build
+
+```bash
+pnpm --filter @dw-fx-ledger/web build
+```
+
+Admin typecheck/build
+
+```bash
+pnpm --filter @dw-fx-ledger/admin typecheck
+pnpm --filter @dw-fx-ledger/admin build
+```
+
+전체 workspace build
+
+```bash
+pnpm build
+```
+
+## 주요 화면
+
+- `/login`: 로그인
+- `/register`: 회원가입
+- `/posts`: 게시판
+- `/fx/buy-lots`: 매수 로트 목록
+- `/fx/buy-lots/new`: 매수 등록
+- `/fx/sell-transactions`: 매도 거래 목록
+- `/fx/sell-transactions/new`: 매도 등록
+- `/fx/ledger`: 엑셀형 원장 조회
+- `/fx/dev-lab`: 개발/검증용 FX 이벤트 확인
+
+## 현재 알려진 제한사항
+
+- 매도 수정 기능은 없습니다.
+- 매도 삭제 기능은 없습니다.
+- 매도는 취소만 지원합니다.
+- 중간 매도 단독 취소는 허용하지 않습니다.
+- `/fx/ledger`는 조회 전용 검산 화면입니다.
+- Admin 앱은 아직 본격 기능이 구현되지 않은 스캐폴드 상태입니다.
+
+## 향후 예정
+
+- Admin 기능
+- 리포트 화면
+- Excel Export
+- 고급 통계
+- root lot timeline
+- 원장 필터/검색 고도화
+- 매수/매도 데이터 import 도구 정식화
