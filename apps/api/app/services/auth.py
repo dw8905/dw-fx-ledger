@@ -3,24 +3,10 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.auth import RefreshToken, Role, User, UserRole
+from app.models.auth import RefreshToken, User, UserRole
 from app.schemas.auth import UserRead
+from app.services.roles import USER_ROLE_CODE, USER_ROLE_NAME, ensure_role
 from app.services.security import create_access_token, create_refresh_token, hash_password, hash_token
-
-
-DEFAULT_ROLE_CODE = "user"
-DEFAULT_ROLE_NAME = "User"
-
-
-def get_or_create_default_role(db: Session) -> Role:
-    role = db.scalar(select(Role).where(Role.role_code == DEFAULT_ROLE_CODE))
-    if role is not None:
-        return role
-
-    role = Role(role_code=DEFAULT_ROLE_CODE, role_name=DEFAULT_ROLE_NAME)
-    db.add(role)
-    db.flush()
-    return role
 
 
 def create_user(
@@ -32,7 +18,7 @@ def create_user(
     login_id: str | None,
     default_allocation_strategy: str,
 ) -> User:
-    role = get_or_create_default_role(db)
+    role = ensure_role(db, role_code=USER_ROLE_CODE, role_name=USER_ROLE_NAME)
     user = User(
         email=email,
         login_id=login_id,

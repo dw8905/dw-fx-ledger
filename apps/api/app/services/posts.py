@@ -9,13 +9,14 @@ from app.schemas.posts import (
     PostListResponse,
     PostMutationResponse,
 )
+from app.services.roles import ADMIN_ROLE_CODE, user_has_role
 
 PUBLISHED = "published"
 DELETED = "deleted"
 
 
 def is_admin(user: User) -> bool:
-    return any(user_role.role and user_role.role.role_code == "admin" for user_role in user.roles)
+    return user_has_role(user, ADMIN_ROLE_CODE)
 
 
 def can_mutate_post(user: User, post: BoardPost) -> bool:

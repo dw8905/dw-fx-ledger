@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.auth import User
 from app.services.auth import get_user_by_id
+from app.services.roles import ADMIN_ROLE_CODE, user_has_role
 from app.services.security import decode_access_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -38,3 +39,10 @@ def get_current_user(
         )
 
     return user
+
+
+def require_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    if not user_has_role(current_user, ADMIN_ROLE_CODE):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+
+    return current_user
