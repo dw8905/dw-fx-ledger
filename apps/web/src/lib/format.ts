@@ -6,9 +6,20 @@ export function formatDateTime(value: string) {
 }
 
 export function formatDate(value: string) {
+  const dateOnly = value.split("T")[0];
+  const match = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/.exec(dateOnly);
+
+  if (match?.groups) {
+    const year = Number(match.groups.year);
+    const month = Number(match.groups.month);
+    const day = Number(match.groups.day);
+
+    return `${year}. ${month}. ${day}.`;
+  }
+
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium"
-  }).format(new Date(`${value}T00:00:00`));
+  }).format(new Date(value));
 }
 
 export function formatKrw(value: number) {

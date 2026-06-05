@@ -3,9 +3,14 @@ export function isValidDateParts(year: string, month: string, day: string) {
     return false;
   }
 
+  const numericYear = Number(year);
+  if (numericYear < 1900 || numericYear > 2100) {
+    return false;
+  }
+
   const date = new Date(`${year}-${month}-${day}T00:00:00`);
   return (
-    date.getFullYear() === Number(year) &&
+    date.getFullYear() === numericYear &&
     date.getMonth() + 1 === Number(month) &&
     date.getDate() === Number(day)
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import { SortableHeader, type SortOrder } from "../../../src/components/sortable-header";
-import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../src/lib/format";
+import { formatDate, formatDecimal, formatKrw } from "../../../src/lib/format";
 import {
   formatAllocationStrategy,
   listSellTransactions,
@@ -81,15 +81,12 @@ function SellTransactionsContent() {
                 <th>
                   <SortableHeader label="표시손익" field="total_display_profit_krw" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                 </th>
-                <th>
-                  <SortableHeader label="등록일" field="created_at" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
-                </th>
               </tr>
             </thead>
             <tbody>
               {data.items.length === 0 ? (
                 <tr>
-                  <td colSpan={9}>매도 거래가 없습니다.</td>
+                  <td colSpan={8}>매도 거래가 없습니다.</td>
                 </tr>
               ) : (
                 data.items.map((transaction) => (
@@ -106,7 +103,6 @@ function SellTransactionsContent() {
                     <td>{transaction.transactionStatus}</td>
                     <td>{formatKrw(transaction.totalRealProfitKrw)} KRW</td>
                     <td>{formatKrw(transaction.totalDisplayProfitKrw)} KRW</td>
-                    <td>{formatDateTime(transaction.createdAt)}</td>
                   </tr>
                 ))
               )}
