@@ -15,6 +15,7 @@ export function Header() {
         <Link href="/posts">게시판</Link>
         <Link href="/fx/buy-lots">FX 매수</Link>
         <Link href="/fx/sell-transactions">FX 매도</Link>
+        <Link href="/fx/ledger">FX 원장</Link>
         <Link href="/fx/dev-lab">FX Lab</Link>
         {status === "authenticated" ? (
           <>

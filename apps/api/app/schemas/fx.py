@@ -34,11 +34,17 @@ class BuyLotListResponse(BaseModel):
     totalCount: int
 
 
+class ManualLotAllocationRequest(BaseModel):
+    buyLotId: int
+    usdAmount: Decimal = Field(gt=0)
+
+
 class SellTransactionCreateRequest(BaseModel):
     sellDate: date
     sellUsdAmount: Decimal = Field(gt=0)
     sellExchangeRate: Decimal = Field(gt=0)
-    allocationStrategy: str | None = Field(default=None, pattern="^(highest_rate_first|fifo|lifo)$")
+    allocationStrategy: str | None = Field(default=None, pattern="^(highest_rate_first|fifo|lifo|manual)$")
+    manualAllocations: list[ManualLotAllocationRequest] | None = None
     memo: str | None = None
 
 
@@ -95,6 +101,42 @@ class SellTransactionListResponse(BaseModel):
     page: int
     size: int
     totalCount: int
+
+
+class LedgerRowRead(BaseModel):
+    buyDate: date
+    buyKrwAmount: int
+    buyExchangeRate: Decimal
+    usdAmount: Decimal
+    sellDate: date | None
+    sellExchangeRate: Decimal | None
+    sellKrwAmount: int | None
+    profitKrw: int
+    exchangeDiff: Decimal
+    exchangeDiffAverage: Decimal | None
+    cumulativeProfitKrw: int
+    lotStatus: str
+    buyLotId: int
+    sellTransactionId: int | None
+    lotAllocationId: int | None
+
+
+class LedgerSummaryRead(BaseModel):
+    totalRows: int
+    visibleRows: int
+    openLotCount: int
+    soldAllocationCount: int
+    totalSellTransactionCount: int
+    totalRealProfitKrw: int
+    totalDisplayProfitKrw: int
+    finalCumulativeProfitKrw: int
+    latestLedgerDate: date | None
+
+
+class LedgerResponse(BaseModel):
+    items: list[LedgerRowRead]
+    summary: LedgerSummaryRead
+    period: str
 
 
 class LotEventRead(BaseModel):

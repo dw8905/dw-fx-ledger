@@ -77,7 +77,63 @@ export type SellTransactionListResponse = {
   totalCount: number;
 };
 
+export type LedgerRow = {
+  buyDate: string;
+  buyKrwAmount: number;
+  buyExchangeRate: string;
+  usdAmount: string;
+  sellDate: string | null;
+  sellExchangeRate: string | null;
+  sellKrwAmount: number | null;
+  profitKrw: number;
+  exchangeDiff: string;
+  exchangeDiffAverage: string | null;
+  cumulativeProfitKrw: number;
+  lotStatus: string;
+  buyLotId: number;
+  sellTransactionId: number | null;
+  lotAllocationId: number | null;
+};
+
+export type LedgerSummary = {
+  totalRows: number;
+  visibleRows: number;
+  openLotCount: number;
+  soldAllocationCount: number;
+  totalSellTransactionCount: number;
+  totalRealProfitKrw: number;
+  totalDisplayProfitKrw: number;
+  finalCumulativeProfitKrw: number;
+  latestLedgerDate: string | null;
+};
+
+export type LedgerResponse = {
+  items: LedgerRow[];
+  summary: LedgerSummary;
+  period: string;
+};
+
 export type SortOrder = "asc" | "desc" | null;
+
+export function formatAllocationStrategy(strategy: string) {
+  if (strategy === "highest_rate_first") {
+    return "환율 높은 순";
+  }
+
+  if (strategy === "fifo") {
+    return "오래된 매수순";
+  }
+
+  if (strategy === "lifo") {
+    return "최근 매수순";
+  }
+
+  if (strategy === "manual") {
+    return "직접 선택";
+  }
+
+  return strategy;
+}
 
 function withSort(path: string, sortBy?: string | null, sortOrder?: SortOrder) {
   if (!sortBy || !sortOrder) {
@@ -95,6 +151,12 @@ export async function listBuyLots(
 ) {
   return apiFetch<BuyLotListResponse>(
     withSort(`/fx/buy-lots?page=${page}&size=${size}`, sortBy, sortOrder)
+  );
+}
+
+export async function listOpenBuyLotsForSelection() {
+  return apiFetch<BuyLotListResponse>(
+    "/fx/buy-lots?page=1&size=100&lot_status=open&is_active=true&sort_by=buy_exchange_rate&sort_order=desc"
   );
 }
 
@@ -149,6 +211,10 @@ export async function createSellTransaction(input: {
   sellUsdAmount: string;
   sellExchangeRate: string;
   allocationStrategy: string;
+  manualAllocations?: Array<{
+    buyLotId: number;
+    usdAmount: string;
+  }>;
   memo?: string;
 }) {
   return apiFetch<SellTransaction>("/fx/sell-transactions", {
@@ -170,4 +236,8 @@ export async function cancelSellTransaction(sellTransactionId: number, cancelRea
 
 export async function listLotEvents(page = 1, size = 50) {
   return apiFetch<LotEventListResponse>(`/fx/lot-events?page=${page}&size=${size}`);
+}
+
+export async function getLedger(period = "all") {
+  return apiFetch<LedgerResponse>(`/fx/ledger?period=${encodeURIComponent(period)}`);
 }

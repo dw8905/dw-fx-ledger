@@ -6,6 +6,7 @@ import { AuthGuard } from "../../../src/components/auth-guard";
 import { SortableHeader, type SortOrder } from "../../../src/components/sortable-header";
 import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../src/lib/format";
 import {
+  formatAllocationStrategy,
   listSellTransactions,
   type SellTransactionListResponse
 } from "../../../src/lib/fx-api";
@@ -101,7 +102,7 @@ function SellTransactionsContent() {
                     <td>{formatDate(transaction.sellDate)}</td>
                     <td>{formatDecimal(transaction.sellUsdAmount)} USD</td>
                     <td>{formatDecimal(transaction.sellExchangeRate)}</td>
-                    <td>{transaction.allocationStrategy}</td>
+                    <td>{formatAllocationStrategy(transaction.allocationStrategy)}</td>
                     <td>{transaction.transactionStatus}</td>
                     <td>{formatKrw(transaction.totalRealProfitKrw)} KRW</td>
                     <td>{formatKrw(transaction.totalDisplayProfitKrw)} KRW</td>

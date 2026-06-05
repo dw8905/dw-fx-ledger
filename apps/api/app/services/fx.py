@@ -1,15 +1,18 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP
 
 from sqlalchemy import Select, asc, desc, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.models.auth import User
 from app.models.fx import FxBuyLot, FxLotAllocation, FxLotEvent, FxSellTransaction
 from app.schemas.fx import (
     BuyLotListResponse,
     BuyLotRead,
+    LedgerResponse,
+    LedgerRowRead,
+    LedgerSummaryRead,
     LotAllocationRead,
     LotEventListResponse,
     LotEventRead,
@@ -64,6 +67,24 @@ class AllocationPlan:
     exchange_diff: Decimal
     remaining_usd_amount: Decimal
     remaining_buy_krw_amount: int
+
+
+@dataclass(frozen=True)
+class LedgerSourceRow:
+    buy_date: date
+    buy_krw_amount: int
+    buy_exchange_rate: Decimal
+    usd_amount: Decimal
+    sell_date: date | None
+    sell_exchange_rate: Decimal | None
+    sell_krw_amount: int | None
+    profit_krw: int
+    exchange_diff: Decimal
+    lot_status: str
+    buy_lot_id: int
+    sell_transaction_id: int | None
+    lot_allocation_id: int | None
+    created_at: datetime
 
 
 def quantize_numeric(value: Decimal) -> Decimal:
@@ -351,6 +372,181 @@ def to_buy_lot_read(buy_lot: FxBuyLot) -> BuyLotRead:
     )
 
 
+def subtract_years(value: date, years: int) -> date:
+    try:
+        return value.replace(year=value.year - years)
+    except ValueError:
+        return value.replace(year=value.year - years, day=28)
+
+
+def ledger_basis_date(row: LedgerRowRead | LedgerSourceRow) -> date:
+    if isinstance(row, LedgerRowRead):
+        return row.sellDate or row.buyDate
+
+    return row.sell_date or row.buy_date
+
+
+def is_visible_for_period(row: LedgerRowRead, *, period: str, latest_date: date | None) -> bool:
+    if period == "all" or latest_date is None:
+        return True
+
+    row_date = ledger_basis_date(row)
+    if period == "latest":
+        return row_date == latest_date
+
+    years_by_period = {"1y": 1, "3y": 3, "5y": 5}
+    years = years_by_period.get(period)
+    if years is None:
+        raise ValueError("Invalid ledger period")
+
+    return row_date >= subtract_years(latest_date, years)
+
+
+def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerResponse:
+    if period not in {"all", "1y", "3y", "5y", "latest"}:
+        raise ValueError("Invalid ledger period")
+
+    open_rows = [
+        LedgerSourceRow(
+            buy_date=lot.buy_date,
+            buy_krw_amount=lot.buy_krw_amount,
+            buy_exchange_rate=lot.buy_exchange_rate,
+            usd_amount=lot.usd_amount,
+            sell_date=None,
+            sell_exchange_rate=None,
+            sell_krw_amount=None,
+            profit_krw=0,
+            exchange_diff=Decimal("0"),
+            lot_status=lot.lot_status,
+            buy_lot_id=lot.buy_lot_id,
+            sell_transaction_id=None,
+            lot_allocation_id=None,
+            created_at=lot.created_at,
+        )
+        for lot in db.scalars(
+            select(FxBuyLot).where(
+                FxBuyLot.user_id == current_user.user_id,
+                FxBuyLot.lot_status == OPEN,
+                FxBuyLot.is_active.is_(True),
+                FxBuyLot.is_deleted.is_(False),
+            )
+        ).all()
+    ]
+
+    closed_lot = aliased(FxBuyLot)
+    sold_rows = [
+        LedgerSourceRow(
+            buy_date=lot.buy_date,
+            buy_krw_amount=allocation.allocated_buy_krw_amount,
+            buy_exchange_rate=lot.buy_exchange_rate,
+            usd_amount=allocation.allocated_usd_amount,
+            sell_date=sell_transaction.sell_date,
+            sell_exchange_rate=sell_transaction.sell_exchange_rate,
+            sell_krw_amount=allocation.allocated_sell_krw_amount,
+            profit_krw=allocation.display_profit_krw,
+            exchange_diff=quantize_numeric(
+                max(sell_transaction.sell_exchange_rate - lot.buy_exchange_rate, Decimal("0"))
+            ),
+            lot_status=lot.lot_status,
+            buy_lot_id=lot.buy_lot_id,
+            sell_transaction_id=sell_transaction.sell_transaction_id,
+            lot_allocation_id=allocation.lot_allocation_id,
+            created_at=lot.created_at,
+        )
+        for allocation, sell_transaction, lot in db.execute(
+            select(FxLotAllocation, FxSellTransaction, closed_lot)
+            .join(
+                FxSellTransaction,
+                FxSellTransaction.sell_transaction_id == FxLotAllocation.sell_transaction_id,
+            )
+            .join(closed_lot, closed_lot.buy_lot_id == FxLotAllocation.closed_buy_lot_id)
+            .where(
+                FxSellTransaction.user_id == current_user.user_id,
+                FxSellTransaction.transaction_status == COMPLETED,
+                FxSellTransaction.is_deleted.is_(False),
+                closed_lot.is_deleted.is_(False),
+                closed_lot.lot_status == SOLD,
+            )
+        ).all()
+    ]
+
+    source_rows = sorted(
+        [*open_rows, *sold_rows],
+        key=lambda row: (row.buy_date, row.created_at, row.buy_lot_id),
+    )
+
+    cumulative_profit = 0
+    positive_exchange_total = Decimal("0")
+    positive_exchange_count = 0
+    items: list[LedgerRowRead] = []
+    for row in source_rows:
+        cumulative_profit += row.profit_krw
+        if row.exchange_diff > 0:
+            positive_exchange_total += row.exchange_diff
+            positive_exchange_count += 1
+
+        exchange_diff_average = (
+            quantize_numeric(positive_exchange_total / Decimal(positive_exchange_count))
+            if positive_exchange_count
+            else None
+        )
+        items.append(
+            LedgerRowRead(
+                buyDate=row.buy_date,
+                buyKrwAmount=row.buy_krw_amount,
+                buyExchangeRate=row.buy_exchange_rate,
+                usdAmount=row.usd_amount,
+                sellDate=row.sell_date,
+                sellExchangeRate=row.sell_exchange_rate,
+                sellKrwAmount=row.sell_krw_amount,
+                profitKrw=row.profit_krw,
+                exchangeDiff=row.exchange_diff,
+                exchangeDiffAverage=exchange_diff_average,
+                cumulativeProfitKrw=cumulative_profit,
+                lotStatus=row.lot_status,
+                buyLotId=row.buy_lot_id,
+                sellTransactionId=row.sell_transaction_id,
+                lotAllocationId=row.lot_allocation_id,
+            )
+        )
+
+    latest_date = max((ledger_basis_date(item) for item in items), default=None)
+    visible_items = [
+        item for item in items if is_visible_for_period(item, period=period, latest_date=latest_date)
+    ]
+    total_display_profit = sum(item.profitKrw for item in items)
+    total_real_profit = db.scalar(
+        select(func.coalesce(func.sum(FxSellTransaction.total_real_profit_krw), 0)).where(
+            FxSellTransaction.user_id == current_user.user_id,
+            FxSellTransaction.transaction_status == COMPLETED,
+            FxSellTransaction.is_deleted.is_(False),
+        )
+    ) or 0
+    total_sell_transaction_count = db.scalar(
+        select(func.count()).select_from(FxSellTransaction).where(
+            FxSellTransaction.user_id == current_user.user_id,
+            FxSellTransaction.transaction_status == COMPLETED,
+            FxSellTransaction.is_deleted.is_(False),
+        )
+    ) or 0
+
+    return LedgerResponse(
+        items=visible_items,
+        summary=LedgerSummaryRead(
+            totalRows=len(items),
+            visibleRows=len(visible_items),
+            openLotCount=len(open_rows),
+            soldAllocationCount=len(sold_rows),
+            totalSellTransactionCount=total_sell_transaction_count,
+            totalRealProfitKrw=total_real_profit,
+            totalDisplayProfitKrw=total_display_profit,
+            finalCumulativeProfitKrw=cumulative_profit,
+            latestLedgerDate=latest_date,
+        ),
+        period=period,
+    )
+
+
 def get_source_lots_for_strategy(db: Session, *, user_id: int, strategy: str) -> list[FxBuyLot]:
     query = (
         select(FxBuyLot)
@@ -423,6 +619,86 @@ def build_allocation_plans(
     return plans
 
 
+def get_manual_source_lots(
+    db: Session,
+    *,
+    current_user: User,
+    manual_allocations: list[tuple[int, Decimal]],
+) -> list[tuple[FxBuyLot, Decimal]]:
+    if not manual_allocations:
+        raise ValueError("Manual allocations are required")
+
+    buy_lot_ids = [buy_lot_id for buy_lot_id, _ in manual_allocations]
+    if len(buy_lot_ids) != len(set(buy_lot_ids)):
+        raise ValueError("Duplicate buy lots are not allowed in manual allocations")
+
+    lots = list(
+        db.scalars(
+            select(FxBuyLot)
+            .where(
+                FxBuyLot.buy_lot_id.in_(buy_lot_ids),
+                FxBuyLot.user_id == current_user.user_id,
+                FxBuyLot.is_deleted.is_(False),
+                FxBuyLot.is_active.is_(True),
+                FxBuyLot.lot_status == OPEN,
+            )
+            .with_for_update()
+        ).all()
+    )
+    lots_by_id = {lot.buy_lot_id: lot for lot in lots}
+    missing_ids = [buy_lot_id for buy_lot_id in buy_lot_ids if buy_lot_id not in lots_by_id]
+    if missing_ids:
+        raise ValueError("Manual allocations include unavailable buy lots")
+
+    return [(lots_by_id[buy_lot_id], usd_amount) for buy_lot_id, usd_amount in manual_allocations]
+
+
+def build_manual_allocation_plans(
+    *,
+    source_lots: list[tuple[FxBuyLot, Decimal]],
+    sell_usd_amount: Decimal,
+    sell_exchange_rate: Decimal,
+) -> list[AllocationPlan]:
+    normalized_sell_usd = quantize_numeric(sell_usd_amount)
+    normalized_sell_rate = quantize_numeric(sell_exchange_rate)
+    selected_total_usd = quantize_numeric(sum((quantize_numeric(amount) for _, amount in source_lots), Decimal("0")))
+    if selected_total_usd != normalized_sell_usd:
+        raise ValueError("Manual allocation total must match sell USD amount")
+
+    plans: list[AllocationPlan] = []
+    for source_lot, raw_allocated_usd in source_lots:
+        allocated_usd = quantize_numeric(raw_allocated_usd)
+        if allocated_usd > source_lot.usd_amount:
+            raise InsufficientBuyLotBalanceError("Manual allocation exceeds buy lot balance")
+
+        allocated_buy_krw = calculate_allocated_buy_krw_amount(source_lot, allocated_usd)
+        allocated_sell_krw = calculate_sell_krw_amount(
+            allocated_buy_krw,
+            normalized_sell_rate,
+            source_lot.buy_exchange_rate,
+        )
+        real_profit = allocated_sell_krw - allocated_buy_krw
+        remaining_usd = quantize_numeric(source_lot.usd_amount - allocated_usd)
+        remaining_buy_krw = source_lot.buy_krw_amount - allocated_buy_krw
+        exchange_diff = max(normalized_sell_rate - source_lot.buy_exchange_rate, Decimal("0"))
+
+        plans.append(
+            AllocationPlan(
+                source_lot=source_lot,
+                allocated_usd_amount=allocated_usd,
+                allocated_buy_krw_amount=allocated_buy_krw,
+                allocated_sell_krw_amount=allocated_sell_krw,
+                real_profit_krw=real_profit,
+                display_profit_krw=max(real_profit, 0),
+                exchange_diff=quantize_numeric(exchange_diff),
+                remaining_usd_amount=remaining_usd,
+                remaining_buy_krw_amount=remaining_buy_krw,
+            )
+        )
+
+    return plans
+
+
 def create_sell_transaction(
     db: Session,
     *,
@@ -431,20 +707,33 @@ def create_sell_transaction(
     sell_usd_amount: Decimal,
     sell_exchange_rate: Decimal,
     allocation_strategy: str,
+    manual_allocations: list[tuple[int, Decimal]] | None,
     memo: str | None,
 ) -> SellTransactionRead:
     normalized_sell_usd = quantize_numeric(sell_usd_amount)
     normalized_sell_rate = quantize_numeric(sell_exchange_rate)
-    source_lots = get_source_lots_for_strategy(
-        db,
-        user_id=current_user.user_id,
-        strategy=allocation_strategy,
-    )
-    plans = build_allocation_plans(
-        source_lots=source_lots,
-        sell_usd_amount=normalized_sell_usd,
-        sell_exchange_rate=normalized_sell_rate,
-    )
+    if allocation_strategy == "manual":
+        source_lots = get_manual_source_lots(
+            db,
+            current_user=current_user,
+            manual_allocations=manual_allocations or [],
+        )
+        plans = build_manual_allocation_plans(
+            source_lots=source_lots,
+            sell_usd_amount=normalized_sell_usd,
+            sell_exchange_rate=normalized_sell_rate,
+        )
+    else:
+        source_lots = get_source_lots_for_strategy(
+            db,
+            user_id=current_user.user_id,
+            strategy=allocation_strategy,
+        )
+        plans = build_allocation_plans(
+            source_lots=source_lots,
+            sell_usd_amount=normalized_sell_usd,
+            sell_exchange_rate=normalized_sell_rate,
+        )
 
     transaction = FxSellTransaction(
         user_id=current_user.user_id,

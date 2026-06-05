@@ -11,6 +11,7 @@ from app.schemas.fx import (
     BuyLotListResponse,
     BuyLotRead,
     BuyLotUpdateRequest,
+    LedgerResponse,
     LotEventListResponse,
     SellTransactionCancelRequest,
     SellTransactionCreateRequest,
@@ -25,6 +26,7 @@ from app.services.fx import (
     delete_buy_lot,
     get_buy_lot,
     get_sell_transaction,
+    list_ledger,
     list_buy_lots,
     list_lot_events,
     list_sell_transactions,
@@ -162,6 +164,10 @@ def create_sell_transaction_route(
             sell_exchange_rate=payload.sellExchangeRate,
             allocation_strategy=payload.allocationStrategy
             or current_user.default_allocation_strategy,
+            manual_allocations=[
+                (allocation.buyLotId, allocation.usdAmount)
+                for allocation in payload.manualAllocations or []
+            ],
             memo=payload.memo,
         )
     except InsufficientBuyLotBalanceError as error:
@@ -240,6 +246,18 @@ def list_sell_transactions_route(
             sort_by=sort_by,
             sort_order=sort_order,
         )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/ledger", response_model=LedgerResponse)
+def list_ledger_route(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    period: str = "all",
+) -> LedgerResponse:
+    try:
+        return list_ledger(db, current_user=current_user, period=period)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 

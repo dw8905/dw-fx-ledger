@@ -381,6 +381,29 @@ p {
   border-radius: 6px;
 }
 
+.manual-allocation-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #dce4dd;
+  border-radius: 6px;
+}
+
+.manual-allocation-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #2f6041;
+  font-size: 14px;
+}
+
+.compact-table input[type="number"] {
+  width: 132px;
+  min-height: 36px;
+  padding: 0 8px;
+}
+
 .compact-panel {
   max-width: 560px;
 }
@@ -456,6 +479,101 @@ p {
   line-height: 1.7;
 }
 
+.ledger-page {
+  max-width: 1600px;
+}
+
+.period-select {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+  color: #2f6041;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.period-select select {
+  min-height: 40px;
+  border: 1px solid #9aaea0;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #ffffff;
+}
+
+.ledger-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.ledger-summary div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #dce4dd;
+  border-radius: 6px;
+}
+
+.ledger-summary span {
+  color: #52705e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profit-strong {
+  color: #1f7a3b;
+}
+
+.ledger-table-wrap {
+  overflow: auto;
+  border: 1px solid #1b1f1d;
+  background: #ffffff;
+}
+
+.ledger-table {
+  width: 100%;
+  min-width: 1200px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ledger-table th {
+  position: sticky;
+  top: 0;
+  padding: 8px 10px;
+  color: #ffffff;
+  background: #050807;
+  border: 1px solid #1b1f1d;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ledger-table td {
+  padding: 7px 10px;
+  border: 1px solid #1b1f1d;
+  white-space: nowrap;
+}
+
+.ledger-table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-table .calc-col {
+  background: #e6f2df;
+}
+
+.ledger-table th.calc-col {
+  background: #050807;
+}
+
+.ledger-table .cumulative-cell {
+  background: #cfe8bd;
+  font-weight: 800;
+}
+
 @media (max-width: 560px) {
   .app-header {
     align-items: flex-start;
@@ -478,6 +596,10 @@ p {
   }
 
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-summary {
     grid-template-columns: 1fr;
   }
 }

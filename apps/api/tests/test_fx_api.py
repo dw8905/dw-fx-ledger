@@ -413,6 +413,163 @@ def test_sell_transactions_multi_lot_and_sorting() -> None:
     assert desc_profits == sorted(desc_profits, reverse=True)
 
 
+def test_sell_transaction_manual_allocations() -> None:
+    require_fx_lot_events_table()
+
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+    first_buy_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2025-03-01",
+            "buyKrwAmount": 100000,
+            "buyExchangeRate": "1000.00",
+        },
+    )
+    assert first_buy_response.status_code == 201, first_buy_response.text
+    second_buy_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2025-03-02",
+            "buyKrwAmount": 100000,
+            "buyExchangeRate": "2000.00",
+        },
+    )
+    assert second_buy_response.status_code == 201, second_buy_response.text
+
+    first_lot = first_buy_response.json()
+    second_lot = second_buy_response.json()
+    sell_response = client.post(
+        "/fx/sell-transactions",
+        json={
+            "sellDate": "2026-06-05",
+            "sellUsdAmount": "70.00",
+            "sellExchangeRate": "1500.00",
+            "allocationStrategy": "manual",
+            "manualAllocations": [
+                {"buyLotId": first_lot["buyLotId"], "usdAmount": "40.00"},
+                {"buyLotId": second_lot["buyLotId"], "usdAmount": "30.00"},
+            ],
+        },
+    )
+    assert sell_response.status_code == 201, sell_response.text
+    sell = sell_response.json()
+    assert sell["allocationStrategy"] == "manual"
+    assert sell["sellUsdAmount"] == "70.000000"
+    assert len(sell["allocations"]) == 2
+    assert [allocation["sourceBuyLotId"] for allocation in sell["allocations"]] == [
+        first_lot["buyLotId"],
+        second_lot["buyLotId"],
+    ]
+    assert [allocation["allocatedUsdAmount"] for allocation in sell["allocations"]] == [
+        "40.000000",
+        "30.000000",
+    ]
+
+    mismatch_response = client.post(
+        "/fx/sell-transactions",
+        json={
+            "sellDate": "2026-06-06",
+            "sellUsdAmount": "10.00",
+            "sellExchangeRate": "1500.00",
+            "allocationStrategy": "manual",
+            "manualAllocations": [
+                {"buyLotId": sell["allocations"][0]["remainingBuyLotId"], "usdAmount": "9.00"},
+            ],
+        },
+    )
+    assert mismatch_response.status_code == 400
+
+
+def test_ledger_open_sold_cumulative_average_and_periods() -> None:
+    require_fx_lot_events_table()
+
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+    first_buy_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2024-01-01",
+            "buyKrwAmount": 100000,
+            "buyExchangeRate": "1000.00",
+        },
+    )
+    assert first_buy_response.status_code == 201, first_buy_response.text
+    second_buy_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2025-01-01",
+            "buyKrwAmount": 200000,
+            "buyExchangeRate": "2000.00",
+        },
+    )
+    assert second_buy_response.status_code == 201, second_buy_response.text
+
+    first_lot = first_buy_response.json()
+    second_lot = second_buy_response.json()
+    sell_response = client.post(
+        "/fx/sell-transactions",
+        json={
+            "sellDate": "2026-06-05",
+            "sellUsdAmount": "50.00",
+            "sellExchangeRate": "1100.00",
+            "allocationStrategy": "manual",
+            "manualAllocations": [
+                {"buyLotId": first_lot["buyLotId"], "usdAmount": "50.00"},
+            ],
+        },
+    )
+    assert sell_response.status_code == 201, sell_response.text
+
+    all_response = client.get("/fx/ledger?period=all")
+    assert all_response.status_code == 200, all_response.text
+    ledger = all_response.json()
+    assert ledger["summary"]["totalRows"] == 3
+    assert ledger["summary"]["visibleRows"] == 3
+    assert ledger["summary"]["openLotCount"] == 2
+    assert ledger["summary"]["soldAllocationCount"] == 1
+    assert ledger["summary"]["totalSellTransactionCount"] == 1
+    assert ledger["summary"]["finalCumulativeProfitKrw"] == 5000
+    assert ledger["summary"]["latestLedgerDate"] == "2026-06-05"
+
+    sold_rows = [item for item in ledger["items"] if item["lotAllocationId"] is not None]
+    open_rows = [item for item in ledger["items"] if item["lotAllocationId"] is None]
+    assert len(sold_rows) == 1
+    assert len(open_rows) == 2
+    sold = sold_rows[0]
+    assert sold["buyKrwAmount"] == 50000
+    assert sold["sellKrwAmount"] == 55000
+    assert sold["profitKrw"] == 5000
+    assert sold["exchangeDiff"] == "100.000000"
+    assert sold["exchangeDiffAverage"] == "100.000000"
+    assert sold["cumulativeProfitKrw"] == 5000
+    assert {item["lotStatus"] for item in ledger["items"]} == {"sold", "open"}
+    assert second_lot["buyLotId"] in {item["buyLotId"] for item in open_rows}
+
+    latest_response = client.get("/fx/ledger?period=latest")
+    assert latest_response.status_code == 200, latest_response.text
+    latest = latest_response.json()
+    assert latest["summary"]["totalRows"] == 3
+    assert latest["summary"]["visibleRows"] == 1
+    assert latest["items"][0]["sellDate"] == "2026-06-05"
+    assert latest["items"][0]["cumulativeProfitKrw"] == 5000
+
+    one_year_response = client.get("/fx/ledger?period=1y")
+    assert one_year_response.status_code == 200, one_year_response.text
+    one_year = one_year_response.json()
+    assert one_year["summary"]["totalRows"] == 3
+    assert one_year["summary"]["visibleRows"] == 1
+    assert one_year["items"][0]["exchangeDiffAverage"] == "100.000000"
+
+    three_year_response = client.get("/fx/ledger?period=3y")
+    assert three_year_response.status_code == 200, three_year_response.text
+    assert three_year_response.json()["summary"]["visibleRows"] == 3
+
+    five_year_response = client.get("/fx/ledger?period=5y")
+    assert five_year_response.status_code == 200, five_year_response.text
+    assert five_year_response.json()["summary"]["visibleRows"] == 3
+
+
 def test_sell_transaction_cancel_latest_only_and_events() -> None:
     require_fx_lot_events_table()
 

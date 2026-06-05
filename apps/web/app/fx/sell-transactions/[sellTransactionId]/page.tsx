@@ -7,6 +7,7 @@ import { AuthGuard } from "../../../../src/components/auth-guard";
 import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../../src/lib/format";
 import {
   cancelSellTransaction,
+  formatAllocationStrategy,
   getSellTransaction,
   type SellTransaction
 } from "../../../../src/lib/fx-api";
@@ -89,7 +90,7 @@ function SellTransactionDetailContent() {
               </div>
               <div>
                 <dt>차감 전략</dt>
-                <dd>{transaction.allocationStrategy}</dd>
+                <dd>{formatAllocationStrategy(transaction.allocationStrategy)}</dd>
               </div>
               <div>
                 <dt>매수 원가</dt>
