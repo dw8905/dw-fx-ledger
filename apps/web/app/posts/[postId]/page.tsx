@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../../src/context/auth-context";
 import { formatDateTime } from "../../../src/lib/format";
 import { deletePost, getPost, type PostDetail } from "../../../src/lib/posts-api";
@@ -14,6 +14,7 @@ export default function PostDetailPage() {
   const postId = Number(params.postId);
   const [post, setPost] = useState<PostDetail | null>(null);
   const [error, setError] = useState("");
+  const loadedPostIdRef = useRef<number | null>(null);
 
   const canMutate = useMemo(() => {
     if (!user || !post) {
@@ -24,11 +25,18 @@ export default function PostDetailPage() {
   }, [post, user]);
 
   useEffect(() => {
+    if (Number.isFinite(postId) === false || loadedPostIdRef.current === postId) {
+      return;
+    }
+
+    loadedPostIdRef.current = postId;
+    setError("");
     getPost(postId)
       .then(setPost)
-      .catch((caughtError) =>
-        setError(caughtError instanceof Error ? caughtError.message : "게시글을 불러오지 못했습니다.")
-      );
+      .catch((caughtError) => {
+        loadedPostIdRef.current = null;
+        setError(caughtError instanceof Error ? caughtError.message : "게시글을 불러오지 못했습니다.");
+      });
   }, [postId]);
 
   async function handleDelete() {

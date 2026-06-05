@@ -75,6 +75,42 @@ def test_posts_crud_and_permissions() -> None:
     assert deleted_detail_response.status_code == 404
 
 
+def test_post_view_count_increments_once_per_detail_request() -> None:
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+
+    create_response = client.post(
+        "/posts",
+        json={"title": "조회수 테스트", "content": "상세 조회수 검증"},
+    )
+    assert create_response.status_code == 201, create_response.text
+    post_id = create_response.json()["postId"]
+
+    initial_list_response = client.get("/posts")
+    assert initial_list_response.status_code == 200, initial_list_response.text
+    initial_item = next(
+        item for item in initial_list_response.json()["items"] if item["postId"] == post_id
+    )
+    assert initial_item["viewCount"] == 0
+
+    first_detail_response = client.get(f"/posts/{post_id}")
+    assert first_detail_response.status_code == 200, first_detail_response.text
+    assert first_detail_response.json()["viewCount"] == 1
+
+    list_after_first_detail_response = client.get("/posts")
+    assert list_after_first_detail_response.status_code == 200, list_after_first_detail_response.text
+    item_after_first_detail = next(
+        item
+        for item in list_after_first_detail_response.json()["items"]
+        if item["postId"] == post_id
+    )
+    assert item_after_first_detail["viewCount"] == 1
+
+    second_detail_response = client.get(f"/posts/{post_id}")
+    assert second_detail_response.status_code == 200, second_detail_response.text
+    assert second_detail_response.json()["viewCount"] == 2
+
+
 def test_posts_openapi_paths() -> None:
     client = TestClient(app)
     response = client.get("/openapi.json")
