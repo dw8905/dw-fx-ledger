@@ -22,6 +22,21 @@ export function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+export function formatCompactDate(value: string) {
+  const dateOnly = value.split("T")[0];
+  const match = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/.exec(dateOnly);
+
+  if (match?.groups) {
+    return `${match.groups.year.slice(2)}${match.groups.month}${match.groups.day}`;
+  }
+
+  const date = new Date(value);
+  const year = String(date.getFullYear()).slice(2);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
 export function formatKrw(value: number) {
   return new Intl.NumberFormat("ko-KR").format(value);
 }

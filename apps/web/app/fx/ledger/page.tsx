@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import {
-  formatDate,
+  formatCompactDate,
   formatKrw,
   formatKrwCurrency,
   formatKrwRate,
@@ -20,7 +20,7 @@ const periodOptions = [
 ];
 
 function formatNullableDate(value: string | null) {
-  return value ? formatDate(value) : "";
+  return value ? formatCompactDate(value) : "";
 }
 
 function formatNullableKrwRate(value: string | null) {
@@ -100,7 +100,7 @@ function LedgerContent() {
             </div>
             <div>
               <span>마지막 기준일</span>
-              <strong>{data.summary.latestLedgerDate ? formatDate(data.summary.latestLedgerDate) : ""}</strong>
+              <strong>{data.summary.latestLedgerDate ? formatCompactDate(data.summary.latestLedgerDate) : ""}</strong>
             </div>
           </section>
 
@@ -123,7 +123,7 @@ function LedgerContent() {
               <tbody>
                 {data.items.map((row) => (
                   <tr key={`${row.buyLotId}-${row.lotAllocationId || "open"}`}>
-                    <td>{formatDate(row.buyDate)}</td>
+                    <td>{formatCompactDate(row.buyDate)}</td>
                     <td className="numeric">{formatKrwCurrency(row.buyKrwAmount)}</td>
                     <td className="numeric">{formatKrwRate(row.buyExchangeRate)}</td>
                     <td className="numeric">{formatUsdCurrency(row.usdAmount)}</td>

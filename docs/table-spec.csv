@@ -1,0 +1,109 @@
+table_name,column_name,data_type,nullable,primary_key,foreign_key,unique,indexed,default,description
+users,user_id,bigint,false,true,,false,false,autoincrement,사용자 ID
+users,email,varchar(255),false,false,,true,false,,이메일
+users,login_id,varchar(100),true,false,,true,false,,로그인 ID
+users,password_hash,varchar(255),false,false,,false,false,,비밀번호 hash
+users,display_name,varchar(100),false,false,,false,false,,표시 이름
+users,user_status,varchar(30),false,false,,false,true,active,계정 상태
+users,default_allocation_strategy,varchar(50),false,false,,false,false,highest_rate_first,기본 FX 매도 차감 전략
+users,is_deleted,boolean,false,false,,false,true,false,논리 삭제 여부
+users,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+users,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
+users,created_by,bigint,true,false,users.user_id,false,false,,생성자
+users,updated_by,bigint,true,false,users.user_id,false,false,,수정자
+roles,role_id,bigint,false,true,,false,false,autoincrement,Role ID
+roles,role_code,varchar(50),false,false,,true,false,,Role 코드
+roles,role_name,varchar(100),false,false,,false,false,,Role 이름
+roles,description,text,true,false,,false,false,,Role 설명
+roles,is_active,boolean,false,false,,false,false,true,활성 여부
+roles,is_deleted,boolean,false,false,,false,false,false,논리 삭제 여부
+roles,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+roles,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
+roles,created_by,bigint,true,false,users.user_id,false,false,,생성자
+roles,updated_by,bigint,true,false,users.user_id,false,false,,수정자
+user_roles,user_role_id,bigint,false,true,,false,false,autoincrement,사용자-role 매핑 ID
+user_roles,user_id,bigint,false,false,users.user_id,false,true,,사용자
+user_roles,role_id,bigint,false,false,roles.role_id,false,true,,Role
+user_roles,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+user_roles,created_by,bigint,true,false,users.user_id,false,false,,생성자
+refresh_tokens,refresh_token_id,bigint,false,true,,false,false,autoincrement,Refresh token ID
+refresh_tokens,user_id,bigint,false,false,users.user_id,false,true,,토큰 소유 사용자
+refresh_tokens,token_hash,varchar(255),false,false,,true,false,,Refresh token hash
+refresh_tokens,expires_at,timestamptz,false,false,,false,true,,만료 시각
+refresh_tokens,revoked_at,timestamptz,true,false,,false,true,,폐기 시각
+refresh_tokens,user_agent,text,true,false,,false,false,,요청 User-Agent
+refresh_tokens,ip_address,inet,true,false,,false,false,,요청 IP
+refresh_tokens,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+refresh_tokens,created_by,bigint,true,false,users.user_id,false,false,,생성자
+board_posts,post_id,bigint,false,true,,false,false,autoincrement,게시글 ID
+board_posts,author_id,bigint,false,false,users.user_id,false,true,,작성자
+board_posts,title,varchar(200),false,false,,false,false,,제목
+board_posts,content,text,false,false,,false,false,,본문
+board_posts,view_count,integer,false,false,,false,false,0,조회수
+board_posts,post_status,varchar(30),false,false,,false,false,published,게시글 상태
+board_posts,is_deleted,boolean,false,false,,false,true,false,논리 삭제 여부
+board_posts,created_at,timestamptz,false,false,,false,true,now(),생성 시각
+board_posts,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
+board_posts,created_by,bigint,true,false,users.user_id,false,false,,생성자
+board_posts,updated_by,bigint,true,false,users.user_id,false,false,,수정자
+fx_buy_lots,buy_lot_id,bigint,false,true,,false,false,autoincrement,매수 로트 ID
+fx_buy_lots,user_id,bigint,false,false,users.user_id,false,true,,소유 사용자
+fx_buy_lots,parent_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,부모 로트
+fx_buy_lots,root_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,루트 로트
+fx_buy_lots,lot_status,varchar(30),false,false,,false,true,,로트 상태
+fx_buy_lots,buy_date,date,false,false,,false,true,,매수일
+fx_buy_lots,buy_krw_amount,bigint,false,false,,false,false,,매수 원화 금액
+fx_buy_lots,buy_exchange_rate,numeric(18,6),false,false,,false,true,,매수 적용 환율
+fx_buy_lots,usd_amount,numeric(18,6),false,false,,false,false,,매수 USD 금액
+fx_buy_lots,is_active,boolean,false,false,,false,true,true,활성 여부
+fx_buy_lots,is_deleted,boolean,false,false,,false,true,false,논리 삭제 여부
+fx_buy_lots,lock_version,integer,false,false,,false,false,1,변경 버전
+fx_buy_lots,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+fx_buy_lots,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
+fx_buy_lots,created_by,bigint,true,false,users.user_id,false,false,,생성자
+fx_buy_lots,updated_by,bigint,true,false,users.user_id,false,false,,수정자
+fx_sell_transactions,sell_transaction_id,bigint,false,true,,false,false,autoincrement,매도 거래 ID
+fx_sell_transactions,user_id,bigint,false,false,users.user_id,false,true,,소유 사용자
+fx_sell_transactions,sell_date,date,false,false,,false,true,,매도일
+fx_sell_transactions,sell_usd_amount,numeric(18,6),false,false,,false,false,,매도 USD 금액
+fx_sell_transactions,sell_exchange_rate,numeric(18,6),false,false,,false,false,,매도 적용 환율
+fx_sell_transactions,allocation_strategy,varchar(50),false,false,,false,true,,차감 전략
+fx_sell_transactions,transaction_status,varchar(30),false,false,,false,true,completed,거래 상태
+fx_sell_transactions,total_buy_krw_amount,bigint,false,false,,false,false,,차감된 매수 원화 합계
+fx_sell_transactions,total_sell_krw_amount,bigint,false,false,,false,false,,매도 원화 합계
+fx_sell_transactions,total_real_profit_krw,bigint,false,false,,false,false,,실제 손익 합계
+fx_sell_transactions,total_display_profit_krw,bigint,false,false,,false,false,,원장 표시 손익 합계
+fx_sell_transactions,memo,text,true,false,,false,false,,메모
+fx_sell_transactions,is_deleted,boolean,false,false,,false,false,false,논리 삭제 여부
+fx_sell_transactions,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+fx_sell_transactions,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
+fx_sell_transactions,created_by,bigint,true,false,users.user_id,false,false,,생성자
+fx_sell_transactions,updated_by,bigint,true,false,users.user_id,false,false,,수정자
+fx_lot_allocations,lot_allocation_id,bigint,false,true,,false,false,autoincrement,Allocation ID
+fx_lot_allocations,sell_transaction_id,bigint,false,false,fx_sell_transactions.sell_transaction_id,false,true,,매도 거래
+fx_lot_allocations,source_buy_lot_id,bigint,false,false,fx_buy_lots.buy_lot_id,false,true,,차감 대상 source 로트
+fx_lot_allocations,closed_buy_lot_id,bigint,false,false,fx_buy_lots.buy_lot_id,false,true,,sold 로트
+fx_lot_allocations,remaining_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,remaining 로트
+fx_lot_allocations,allocated_usd_amount,numeric(18,6),false,false,,false,false,,차감 USD 금액
+fx_lot_allocations,allocated_buy_krw_amount,bigint,false,false,,false,false,,차감분 매수 원화 금액
+fx_lot_allocations,allocated_sell_krw_amount,bigint,false,false,,false,false,,차감분 매도 원화 금액
+fx_lot_allocations,real_profit_krw,bigint,false,false,,false,false,,실제 손익
+fx_lot_allocations,display_profit_krw,bigint,false,false,,false,false,,원장 표시 손익
+fx_lot_allocations,exchange_diff,numeric(18,6),false,false,,false,false,,매도 환율과 매수 환율 차이
+fx_lot_allocations,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+fx_lot_allocations,created_by,bigint,true,false,users.user_id,false,false,,생성자
+fx_lot_events,lot_event_id,bigint,false,true,,false,false,autoincrement,이벤트 ID
+fx_lot_events,user_id,bigint,false,false,users.user_id,false,true,,이벤트 소유 사용자
+fx_lot_events,event_type,varchar(50),false,false,,false,true,,이벤트 유형
+fx_lot_events,event_status,varchar(30),false,false,,false,false,completed,이벤트 상태
+fx_lot_events,root_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,루트 로트
+fx_lot_events,sell_transaction_id,bigint,true,false,fx_sell_transactions.sell_transaction_id,false,true,,관련 매도 거래
+fx_lot_events,lot_allocation_id,bigint,true,false,fx_lot_allocations.lot_allocation_id,false,true,,관련 allocation
+fx_lot_events,source_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,source 로트
+fx_lot_events,closed_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,false,,closed 로트
+fx_lot_events,remaining_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,false,,remaining 로트
+fx_lot_events,restored_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,복원 로트
+fx_lot_events,related_event_id,bigint,true,false,fx_lot_events.lot_event_id,false,false,,관련 이벤트
+fx_lot_events,event_payload,jsonb,true,false,,false,false,,이벤트 부가 데이터
+fx_lot_events,created_at,timestamptz,false,false,,false,true,now(),생성 시각
+fx_lot_events,created_by,bigint,true,false,users.user_id,false,false,,생성자

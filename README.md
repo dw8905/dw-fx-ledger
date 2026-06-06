@@ -184,6 +184,11 @@ event 기록
 
 ## DB 주요 테이블
 
+컬럼, 타입, FK, unique, index, default까지 포함한 상세 명세는 아래 문서를 참고합니다.
+
+- Markdown: [`docs/table-spec.md`](docs/table-spec.md)
+- CSV: [`docs/table-spec.csv`](docs/table-spec.csv)
+
 `users`
 
 - 사용자 계정, 로그인 식별자, 기본 allocation 전략을 저장합니다.

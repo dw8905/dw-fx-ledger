@@ -495,6 +495,15 @@ def test_ledger_open_sold_cumulative_average_and_periods() -> None:
         },
     )
     assert first_buy_response.status_code == 201, first_buy_response.text
+    old_buy_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "buyDate": "2023-01-01",
+            "buyKrwAmount": 100000,
+            "buyExchangeRate": "1000.00",
+        },
+    )
+    assert old_buy_response.status_code == 201, old_buy_response.text
     second_buy_response = client.post(
         "/fx/buy-lots",
         json={
@@ -506,7 +515,22 @@ def test_ledger_open_sold_cumulative_average_and_periods() -> None:
     assert second_buy_response.status_code == 201, second_buy_response.text
 
     first_lot = first_buy_response.json()
+    old_lot = old_buy_response.json()
     second_lot = second_buy_response.json()
+    old_sell_response = client.post(
+        "/fx/sell-transactions",
+        json={
+            "sellDate": "2024-06-05",
+            "sellUsdAmount": "50.00",
+            "sellExchangeRate": "1100.00",
+            "allocationStrategy": "manual",
+            "manualAllocations": [
+                {"buyLotId": old_lot["buyLotId"], "usdAmount": "50.00"},
+            ],
+        },
+    )
+    assert old_sell_response.status_code == 201, old_sell_response.text
+
     sell_response = client.post(
         "/fx/sell-transactions",
         json={
@@ -524,50 +548,60 @@ def test_ledger_open_sold_cumulative_average_and_periods() -> None:
     all_response = client.get("/fx/ledger?period=all")
     assert all_response.status_code == 200, all_response.text
     ledger = all_response.json()
-    assert ledger["summary"]["totalRows"] == 3
-    assert ledger["summary"]["visibleRows"] == 3
-    assert ledger["summary"]["openLotCount"] == 2
-    assert ledger["summary"]["soldAllocationCount"] == 1
-    assert ledger["summary"]["totalSellTransactionCount"] == 1
-    assert ledger["summary"]["finalCumulativeProfitKrw"] == 5000
+    assert ledger["summary"]["totalRows"] == 5
+    assert ledger["summary"]["visibleRows"] == 5
+    assert ledger["summary"]["openLotCount"] == 3
+    assert ledger["summary"]["soldAllocationCount"] == 2
+    assert ledger["summary"]["totalSellTransactionCount"] == 2
+    assert ledger["summary"]["totalDisplayProfitKrw"] == 10000
+    assert ledger["summary"]["finalCumulativeProfitKrw"] == 10000
     assert ledger["summary"]["latestLedgerDate"] == "2026-06-05"
 
     sold_rows = [item for item in ledger["items"] if item["lotAllocationId"] is not None]
     open_rows = [item for item in ledger["items"] if item["lotAllocationId"] is None]
-    assert len(sold_rows) == 1
-    assert len(open_rows) == 2
-    sold = sold_rows[0]
+    assert len(sold_rows) == 2
+    assert len(open_rows) == 3
+    sold = next(row for row in sold_rows if row["sellDate"] == "2026-06-05")
     assert sold["buyKrwAmount"] == 50000
     assert sold["sellKrwAmount"] == 55000
     assert sold["profitKrw"] == 5000
     assert sold["exchangeDiff"] == "100.000000"
     assert sold["exchangeDiffAverage"] == "100.000000"
-    assert sold["cumulativeProfitKrw"] == 5000
+    assert sold["cumulativeProfitKrw"] == 10000
     assert {item["lotStatus"] for item in ledger["items"]} == {"sold", "open"}
     assert second_lot["buyLotId"] in {item["buyLotId"] for item in open_rows}
 
     latest_response = client.get("/fx/ledger?period=latest")
     assert latest_response.status_code == 200, latest_response.text
     latest = latest_response.json()
-    assert latest["summary"]["totalRows"] == 3
+    assert latest["summary"]["totalRows"] == 5
     assert latest["summary"]["visibleRows"] == 1
+    assert latest["summary"]["totalDisplayProfitKrw"] == 5000
+    assert latest["summary"]["finalCumulativeProfitKrw"] == 10000
     assert latest["items"][0]["sellDate"] == "2026-06-05"
-    assert latest["items"][0]["cumulativeProfitKrw"] == 5000
+    assert latest["items"][0]["cumulativeProfitKrw"] == 10000
 
     one_year_response = client.get("/fx/ledger?period=1y")
     assert one_year_response.status_code == 200, one_year_response.text
     one_year = one_year_response.json()
-    assert one_year["summary"]["totalRows"] == 3
+    assert one_year["summary"]["totalRows"] == 5
     assert one_year["summary"]["visibleRows"] == 1
+    assert one_year["summary"]["totalDisplayProfitKrw"] == 5000
+    assert one_year["summary"]["finalCumulativeProfitKrw"] == 10000
     assert one_year["items"][0]["exchangeDiffAverage"] == "100.000000"
 
     three_year_response = client.get("/fx/ledger?period=3y")
     assert three_year_response.status_code == 200, three_year_response.text
-    assert three_year_response.json()["summary"]["visibleRows"] == 3
+    three_year = three_year_response.json()
+    assert three_year["summary"]["visibleRows"] == 4
+    assert three_year["summary"]["totalDisplayProfitKrw"] == 10000
+    assert three_year["summary"]["finalCumulativeProfitKrw"] == 10000
 
     five_year_response = client.get("/fx/ledger?period=5y")
     assert five_year_response.status_code == 200, five_year_response.text
-    assert five_year_response.json()["summary"]["visibleRows"] == 3
+    five_year = five_year_response.json()
+    assert five_year["summary"]["visibleRows"] == 5
+    assert five_year["summary"]["totalDisplayProfitKrw"] == 10000
 
 
 def test_sell_transaction_cancel_latest_only_and_events() -> None:

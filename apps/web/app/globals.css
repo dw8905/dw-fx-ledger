@@ -546,7 +546,10 @@ p {
 }
 
 .ledger-page {
-  max-width: 1600px;
+  width: min(100%, 1760px);
+  max-width: none;
+  padding-left: clamp(16px, 3vw, 48px);
+  padding-right: clamp(16px, 3vw, 48px);
 }
 
 .period-select {
@@ -600,15 +603,15 @@ p {
 
 .ledger-table {
   width: 100%;
-  min-width: 1200px;
+  min-width: 980px;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .ledger-table th {
   position: sticky;
   top: 0;
-  padding: 8px 10px;
+  padding: 6px 7px;
   color: #ffffff;
   background: #050807;
   border: 1px solid #1b1f1d;
@@ -617,7 +620,7 @@ p {
 }
 
 .ledger-table td {
-  padding: 7px 10px;
+  padding: 5px 7px;
   border: 1px solid #1b1f1d;
   white-space: nowrap;
 }

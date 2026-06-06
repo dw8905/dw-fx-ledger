@@ -514,7 +514,7 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
     visible_items = [
         item for item in items if is_visible_for_period(item, period=period, latest_date=latest_date)
     ]
-    total_display_profit = sum(item.profitKrw for item in items)
+    total_display_profit = sum(item.profitKrw for item in visible_items)
     total_real_profit = db.scalar(
         select(func.coalesce(func.sum(FxSellTransaction.total_real_profit_krw), 0)).where(
             FxSellTransaction.user_id == current_user.user_id,
