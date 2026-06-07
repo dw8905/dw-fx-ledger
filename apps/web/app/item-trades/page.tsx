@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGuard } from "../../src/components/auth-guard";
 import { Pagination } from "../../src/components/pagination";
-import { formatDate, formatDateTime, formatKrwCurrency } from "../../src/lib/format";
+import { formatDate, formatKrwCurrency } from "../../src/lib/format";
 import {
   cancelItemTrade,
   createItemTrade,
@@ -40,6 +40,14 @@ function toNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function calculateMinimumProfitableUnitPrice(unitPrice: number, feePercent: number) {
+  const netRate = 1 - feePercent / 100;
+  if (unitPrice <= 0 || netRate <= 0) {
+    return 0;
+  }
+  return Math.ceil(unitPrice / netRate);
+}
+
 function formatFeeRate(value: string) {
   return `${(Number(value) * 100).toLocaleString("ko-KR", {
     maximumFractionDigits: 2
@@ -63,9 +71,9 @@ function ItemTradeForm({
 }) {
   const [itemName, setItemName] = useState("");
   const [tradeDate, setTradeDate] = useState(today);
-  const [unitPrice, setUnitPrice] = useState("1300000");
+  const [unitPrice, setUnitPrice] = useState("0");
   const [quantity, setQuantity] = useState("1");
-  const [feePercent, setFeePercent] = useState(tradeType === "sell" ? "5" : "0");
+  const [feePercent, setFeePercent] = useState("5");
   const [memo, setMemo] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -76,10 +84,9 @@ function ItemTradeForm({
   const unitPriceNumber = toNumber(unitPrice);
   const quantityNumber = toNumber(quantity);
   const feePercentNumber = toNumber(feePercent);
-  const effectiveFeePercent = tradeType === "buy" ? 0 : feePercentNumber;
   const totalAmount = unitPriceNumber * quantityNumber;
   const feeAmount =
-    tradeType === "sell" && totalAmount > 0 ? Math.ceil(totalAmount * (effectiveFeePercent / 100)) : null;
+    tradeType === "sell" && totalAmount > 0 ? Math.ceil(totalAmount * (feePercentNumber / 100)) : null;
   const netSellAmount = feeAmount !== null ? totalAmount - feeAmount : null;
   const costBasis =
     tradeType === "sell" && selectedSummary
@@ -87,10 +94,14 @@ function ItemTradeForm({
       : null;
   const profitAmount =
     netSellAmount !== null && costBasis !== null ? netSellAmount - costBasis : null;
-
-  useEffect(() => {
-    setFeePercent(tradeType === "sell" ? "5" : "0");
-  }, [tradeType]);
+  const buyPreviewQuantity = tradeType === "buy" ? (selectedSummary?.inventoryQuantity ?? 0) + quantityNumber : 0;
+  const buyPreviewValue = tradeType === "buy" ? (selectedSummary?.inventoryValue ?? 0) + totalAmount : 0;
+  const buyPreviewAverageUnitPrice =
+    tradeType === "buy" && buyPreviewQuantity > 0 ? Math.ceil(buyPreviewValue / buyPreviewQuantity) : 0;
+  const previewMinimumProfitableUnitPrice =
+    tradeType === "buy"
+      ? calculateMinimumProfitableUnitPrice(buyPreviewAverageUnitPrice, feePercentNumber)
+      : calculateMinimumProfitableUnitPrice(selectedSummary?.averageBuyUnitPrice ?? 0, feePercentNumber);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,13 +120,13 @@ function ItemTradeForm({
         tradeDate,
         unitPrice: unitPriceNumber,
         quantity: quantityNumber,
-        feeRate: String(effectiveFeePercent / 100),
+        feeRate: String(feePercentNumber / 100),
         memo: memo || undefined
       });
       setTradeDate(today());
-      setUnitPrice("1300000");
+      setUnitPrice("0");
       setQuantity("1");
-      setFeePercent(tradeType === "sell" ? "5" : "0");
+      setFeePercent("5");
       setMemo("");
       await onSaved();
     } catch (caughtError) {
@@ -166,20 +177,18 @@ function ItemTradeForm({
             onChange={(event) => setQuantity(event.target.value)}
           />
         </label>
-        {tradeType === "sell" ? (
-          <label>
-            수수료 %
-            <input
-              required
-              min={0}
-              max={99}
-              step="0.01"
-              type="number"
-              value={feePercent}
-              onChange={(event) => setFeePercent(event.target.value)}
-            />
-          </label>
-        ) : null}
+        <label>
+          판매 수수료 %
+          <input
+            required
+            min={0}
+            max={99}
+            step="0.01"
+            type="number"
+            value={feePercent}
+            onChange={(event) => setFeePercent(event.target.value)}
+          />
+        </label>
       </div>
       <datalist id="item-name-options">
         {codes.map((code) => (
@@ -192,8 +201,11 @@ function ItemTradeForm({
       </label>
       <div className="trade-inline-summary">
         <span>현재 보유 {selectedSummary?.inventoryQuantity ?? 0}</span>
-        <span>평균단가 {formatKrwCurrency(selectedSummary?.averageBuyUnitPrice ?? 0)}</span>
-        <span>최소판매가 {formatKrwCurrency(selectedSummary?.minimumProfitableUnitPrice ?? 0)}</span>
+        <span>
+          평균단가{" "}
+          {formatKrwCurrency(tradeType === "buy" ? buyPreviewAverageUnitPrice : selectedSummary?.averageBuyUnitPrice ?? 0)}
+        </span>
+        <span>최소판매가 {formatKrwCurrency(previewMinimumProfitableUnitPrice)}</span>
         {tradeType === "sell" ? (
           <>
             <span>예상 수수료 {feeAmount === null ? "-" : formatKrwCurrency(feeAmount)}</span>
@@ -250,14 +262,13 @@ function TradeTable({
               </>
             ) : null}
             <th>잔여수량</th>
-            <th>등록일</th>
             <th>작업</th>
           </tr>
         </thead>
         <tbody>
           {items.length === 0 ? (
             <tr>
-              <td colSpan={tradeType === "sell" ? 13 : 10}>기록이 없습니다.</td>
+              <td colSpan={tradeType === "sell" ? 12 : 9}>기록이 없습니다.</td>
             </tr>
           ) : (
             items.map((trade) => (
@@ -279,7 +290,6 @@ function TradeTable({
                   </>
                 ) : null}
                 <td>{trade.inventoryQuantityAfter ?? "-"}</td>
-                <td>{formatDateTime(trade.createdAt)}</td>
                 <td>
                   {trade.tradeStatus === "active" ? (
                     <button className="link-button danger-link" type="button" onClick={() => void handleCancel(trade)}>

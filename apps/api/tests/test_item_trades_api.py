@@ -94,9 +94,9 @@ def test_average_cost_buy_sell_summary_and_fee_rate() -> None:
         },
     )
     assert first_buy.status_code == 201, first_buy.text
-    assert first_buy.json()["feeRate"] == "0.000000"
+    assert first_buy.json()["feeRate"] == "0.050000"
     assert first_buy.json()["averageBuyUnitPrice"] == 1000000
-    assert first_buy.json()["minimumProfitableUnitPrice"] == 1000000
+    assert first_buy.json()["minimumProfitableUnitPrice"] == 1052632
 
     second_buy = client.post(
         "/item-trades",
@@ -115,8 +115,8 @@ def test_average_cost_buy_sell_summary_and_fee_rate() -> None:
     assert body["inventoryQuantityAfter"] == 200
     assert body["inventoryValueAfter"] == 210000000
     assert body["averageBuyUnitPrice"] == 1050000
-    assert body["feeRate"] == "0.000000"
-    assert body["minimumProfitableUnitPrice"] == 1050000
+    assert body["feeRate"] == "0.050000"
+    assert body["minimumProfitableUnitPrice"] == 1105264
 
     sell = client.post(
         "/item-trades",
@@ -154,6 +154,34 @@ def test_average_cost_buy_sell_summary_and_fee_rate() -> None:
     assert summary["averageBuyUnitPrice"] == 1050000
     assert summary["minimumProfitableUnitPrice"] == 1105264
     assert summary["totalProfitAmount"] == 4500000
+
+
+def test_inventory_summary_defaults_zero_fee_to_five_percent() -> None:
+    require_item_tables()
+
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+    item_code = create_admin_item_code("카오스코어")
+
+    buy = client.post(
+        "/item-trades",
+        json={
+            "itemCode": item_code,
+            "itemName": "카오스코어",
+            "tradeType": "buy",
+            "tradeDate": "2026-06-07",
+            "unitPrice": 925555,
+            "quantity": 12,
+            "feeRate": "0",
+        },
+    )
+    assert buy.status_code == 201, buy.text
+
+    list_response = client.get("/item-trades?page=1&size=10")
+    assert list_response.status_code == 200, list_response.text
+    summary = next(item for item in list_response.json()["summaries"] if item["itemCode"] == item_code)
+    assert summary["averageBuyUnitPrice"] == 925555
+    assert summary["minimumProfitableUnitPrice"] == 974269
 
 
 def test_sell_rejects_insufficient_inventory_and_user_scope() -> None:

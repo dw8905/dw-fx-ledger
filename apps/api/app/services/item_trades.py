@@ -19,6 +19,7 @@ SELL = "sell"
 ACTIVE = "active"
 CANCELLED = "cancelled"
 FEE_SCALE = Decimal("0.000001")
+DEFAULT_ITEM_SELL_FEE_RATE = Decimal("0.050000")
 
 
 def quantize_fee_rate(value: Decimal) -> Decimal:
@@ -36,6 +37,12 @@ def calculate_minimum_profitable_unit_price(buy_unit_price: int, fee_rate: Decim
 
 def calculate_fee_amount(total_sell_amount: int, fee_rate: Decimal) -> int:
     return int((Decimal(total_sell_amount) * fee_rate).to_integral_value(rounding=ROUND_CEILING))
+
+
+def effective_inventory_fee_rate(fee_rate: Decimal | None) -> Decimal:
+    if fee_rate is None or fee_rate <= 0:
+        return DEFAULT_ITEM_SELL_FEE_RATE
+    return fee_rate
 
 
 def normalize_item_code(value: str) -> str:
@@ -135,7 +142,7 @@ def create_item_trade(
     if trade_type not in {BUY, SELL}:
         raise ValueError("Invalid trade_type")
 
-    normalized_fee_rate = Decimal("0.000000") if trade_type == BUY else quantize_fee_rate(fee_rate)
+    normalized_fee_rate = quantize_fee_rate(fee_rate)
     code = ensure_item_code(
         db,
         item_code=item_code,
@@ -434,7 +441,7 @@ def list_item_code_summaries(db: Session, *, current_user: User) -> list[ItemCod
             if inventory_quantity and inventory_value
             else 0
         )
-        fee_rate = latest.fee_rate if latest else Decimal("0.050000")
+        fee_rate = effective_inventory_fee_rate(latest.fee_rate if latest else None)
         total_profit_amount = db.scalar(
             select(func.coalesce(func.sum(ItemTrade.profit_amount), 0)).where(
                 ItemTrade.user_id == current_user.user_id,
