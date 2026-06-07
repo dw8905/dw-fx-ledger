@@ -102,6 +102,17 @@ export type AdminLotEvent = {
   created_at: string;
 };
 
+export type AdminItemCode = {
+  item_code_id: number;
+  item_code: string;
+  item_name: string;
+  memo: string | null;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export function listUsers(options: {
   page?: number;
   size?: number;
@@ -176,4 +187,53 @@ export function listLotEvents(options: {
     params.set("root_buy_lot_id", options.rootBuyLotId);
   }
   return apiFetch<Paginated<AdminLotEvent>>(`/admin/fx/lot-events?${params}`);
+}
+
+export function listItemCodes(options: {
+  page?: number;
+  size?: number;
+  keyword?: string;
+  isActive?: string;
+} = {}) {
+  const params = new URLSearchParams();
+  params.set("page", String(options.page ?? 1));
+  params.set("size", String(options.size ?? 10));
+  if (options.keyword) {
+    params.set("keyword", options.keyword);
+  }
+  if (options.isActive) {
+    params.set("is_active", options.isActive);
+  }
+  return apiFetch<Paginated<AdminItemCode>>(`/admin/item-codes?${params}`);
+}
+
+export function createItemCode(input: {
+  item_name: string;
+  memo?: string;
+  is_active: boolean;
+}) {
+  return apiFetch<AdminItemCode>("/admin/item-codes", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export function updateItemCode(
+  itemCodeId: number,
+  input: {
+    item_name: string;
+    memo?: string;
+    is_active: boolean;
+  }
+) {
+  return apiFetch<AdminItemCode>(`/admin/item-codes/${itemCodeId}`, {
+    method: "PUT",
+    body: JSON.stringify(input)
+  });
+}
+
+export function deactivateItemCode(itemCodeId: number) {
+  return apiFetch<AdminItemCode>(`/admin/item-codes/${itemCodeId}`, {
+    method: "DELETE"
+  });
 }

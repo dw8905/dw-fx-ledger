@@ -230,6 +230,18 @@ event 기록
 - 로트 분할, 매도 생성, 매도 취소, 로트 복원 이벤트를 저장합니다.
 - 감사 추적과 취소 검증을 위한 이력 테이블입니다.
 
+`item_codes`
+
+- 아이템을 코드 단위로 묶는 전역 관리자 마스터입니다.
+- 관리자 사이트에서 아이템명으로 등록하면 내부 코드가 자동 생성되며, 웹에서는 활성 아이템명만 자동완성으로 선택합니다.
+
+`item_trades`
+
+- 아이템 코드별 매수/매도 기록과 평균단가 방식 손익 계산 결과를 저장합니다.
+- 최소 이득 판매가, 수수료율, 수수료, 수수료 차감 후 금액, 손익, 거래 후 보유 수량을 기록합니다.
+- 매수/매도 취소는 `cancelled` 상태로 남기고, 같은 아이템의 active 거래 기준으로 재고와 평균단가를 재계산합니다.
+- 아이템별 재고관리에서는 active 매도 거래의 총 수익을 함께 표시합니다.
+
 ## 실행 방법
 
 ### 사전 준비
@@ -261,7 +273,48 @@ docker compose up -d postgres
 
 로컬 환경 변수는 `.env.example`을 참고해 각 앱의 `.env`에 설정합니다. `.env` 파일은 커밋하지 않습니다.
 
-### Backend 실행
+### 통합 Dev 실행
+
+API, Web, Admin을 백그라운드에서 한 번에 실행합니다.
+
+```bash
+pnpm start
+```
+
+실행 상태 확인:
+
+```bash
+pnpm status
+```
+
+중지:
+
+```bash
+pnpm stop
+```
+
+재시작:
+
+```bash
+pnpm restart
+```
+
+서비스 URL:
+
+- API: http://127.0.0.1:8000
+- API Docs: http://127.0.0.1:8000/docs
+- Web: http://localhost:3000
+- Admin: http://localhost:3001
+
+로그:
+
+- `.dev/logs/api.log`
+- `.dev/logs/web.log`
+- `.dev/logs/admin.log`
+
+Next.js dev server와 Uvicorn `--reload`가 파일 변경을 감지하므로 일반 코드 변경은 자동 반영됩니다. 프로세스를 완전히 다시 올리고 싶으면 `pnpm restart`를 사용합니다.
+
+### Backend 개별 실행
 
 ```bash
 cd apps/api
@@ -282,9 +335,9 @@ cd apps/api
 uv run alembic upgrade head
 ```
 
-현재 migration은 인증, 게시판, FX 매수/매도/allocation/event 테이블을 생성합니다.
+현재 migration은 인증, 게시판, FX 매수/매도/allocation/event, 아이템 코드/거래 기록 테이블을 생성합니다.
 
-### Frontend 실행
+### Frontend 개별 실행
 
 ```bash
 pnpm dev:web
@@ -294,7 +347,7 @@ Web:
 
 - http://localhost:3000
 
-### Admin 실행
+### Admin 개별 실행
 
 ```bash
 pnpm dev:admin

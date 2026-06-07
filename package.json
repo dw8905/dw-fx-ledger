@@ -6,6 +6,10 @@
     "dev": "pnpm --parallel --filter @dw-fx-ledger/web --filter @dw-fx-ledger/admin dev",
     "dev:web": "pnpm --filter @dw-fx-ledger/web dev",
     "dev:admin": "pnpm --filter @dw-fx-ledger/admin dev",
+    "start": "bash scripts/dev-start.sh",
+    "stop": "bash scripts/dev-stop.sh",
+    "restart": "bash scripts/dev-stop.sh && bash scripts/dev-start.sh",
+    "status": "bash scripts/dev-status.sh",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"

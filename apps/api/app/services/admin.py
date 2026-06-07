@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -6,8 +7,11 @@ from sqlalchemy.orm import Session, selectinload
 from app.models.auth import User, UserRole
 from app.models.board import BoardPost
 from app.models.fx import FxBuyLot, FxLotEvent, FxSellTransaction
+from app.models.item_trade import ItemCode
 from app.schemas.admin import (
     AdminFxSummary,
+    AdminItemCodeListResponse,
+    AdminItemCodeRead,
     AdminLotEventListResponse,
     AdminLotEventRead,
     AdminPostListItem,
@@ -293,4 +297,121 @@ def list_admin_lot_events(
         size=size,
         total_count=total_count,
         total_pages=total_pages(total_count, size),
+    )
+
+
+def list_admin_item_codes(
+    db: Session,
+    *,
+    page: int,
+    size: int,
+    keyword: str | None,
+    is_active: bool | None,
+) -> AdminItemCodeListResponse:
+    filters = [ItemCode.is_deleted.is_(False)]
+    if keyword:
+        pattern = f"%{keyword.strip()}%"
+        filters.append(or_(ItemCode.item_code.ilike(pattern), ItemCode.item_name.ilike(pattern)))
+    if is_active is not None:
+        filters.append(ItemCode.is_active.is_(is_active))
+
+    total_count = db.scalar(select(func.count()).select_from(ItemCode).where(*filters)) or 0
+    rows = db.scalars(
+        select(ItemCode)
+        .where(*filters)
+        .order_by(ItemCode.item_name.asc(), ItemCode.item_code_id.asc())
+        .offset((page - 1) * size)
+        .limit(size)
+    ).all()
+    return AdminItemCodeListResponse(
+        items=[to_admin_item_code_read(row) for row in rows],
+        page=page,
+        size=size,
+        total_count=total_count,
+        total_pages=total_pages(total_count, size),
+    )
+
+
+def get_admin_item_code(db: Session, *, item_code_id: int) -> ItemCode | None:
+    return db.scalar(
+        select(ItemCode).where(
+            ItemCode.item_code_id == item_code_id,
+            ItemCode.is_deleted.is_(False),
+        )
+    )
+
+
+def item_code_exists(db: Session, *, item_code: str, exclude_item_code_id: int | None = None) -> bool:
+    filters = [ItemCode.item_code == item_code.strip(), ItemCode.is_deleted.is_(False)]
+    if exclude_item_code_id is not None:
+        filters.append(ItemCode.item_code_id != exclude_item_code_id)
+    return (db.scalar(select(func.count()).select_from(ItemCode).where(*filters)) or 0) > 0
+
+
+def create_admin_item_code(
+    db: Session,
+    *,
+    admin_user: User,
+    item_name: str,
+    memo: str | None,
+    is_active: bool,
+) -> AdminItemCodeRead:
+    code = ItemCode(
+        user_id=None,
+        item_code=f"PENDING-{uuid4().hex}",
+        item_name=item_name.strip(),
+        memo=memo,
+        is_active=is_active,
+        created_by=admin_user.user_id,
+        updated_by=admin_user.user_id,
+    )
+    db.add(code)
+    db.flush()
+    code.item_code = f"ITEM-{code.item_code_id:06d}"
+    db.flush()
+    db.refresh(code)
+    return to_admin_item_code_read(code)
+
+
+def update_admin_item_code(
+    db: Session,
+    *,
+    admin_user: User,
+    code: ItemCode,
+    item_name: str,
+    memo: str | None,
+    is_active: bool,
+) -> AdminItemCodeRead:
+    code.item_name = item_name.strip()
+    code.memo = memo
+    code.is_active = is_active
+    code.updated_by = admin_user.user_id
+    db.flush()
+    db.refresh(code)
+    return to_admin_item_code_read(code)
+
+
+def deactivate_admin_item_code(
+    db: Session,
+    *,
+    admin_user: User,
+    code: ItemCode,
+) -> AdminItemCodeRead:
+    code.is_active = False
+    code.updated_by = admin_user.user_id
+    db.flush()
+    db.refresh(code)
+    return to_admin_item_code_read(code)
+
+
+def to_admin_item_code_read(code: ItemCode) -> AdminItemCodeRead:
+    return AdminItemCodeRead(
+        item_code_id=code.item_code_id,
+        item_code=code.item_code,
+        item_name=code.item_name,
+        memo=code.memo,
+        is_active=code.is_active,
+        is_deleted=code.is_deleted,
+        created_at=code.created_at,
+        updated_at=code.updated_at,
     )

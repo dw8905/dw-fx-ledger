@@ -17,6 +17,7 @@ export function Header() {
         <Link href="/fx/sell-transactions">FX 매도</Link>
         <Link href="/fx/ledger">FX 원장</Link>
         <Link href="/fx/dev-lab">FX Lab</Link>
+        <Link href="/item-trades">아이템</Link>
         {status === "authenticated" ? (
           <>
             <span className="user-name">{user?.displayName}</span>

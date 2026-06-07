@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.schemas.fx import LedgerResponse
 
@@ -92,3 +92,34 @@ class AdminLotEventListResponse(BaseModel):
 class AdminUserLedgerResponse(BaseModel):
     user: AdminUserListItem
     ledger: LedgerResponse
+
+
+class AdminItemCodeCreateRequest(BaseModel):
+    item_name: str = Field(min_length=1, max_length=120)
+    memo: str | None = None
+    is_active: bool = True
+
+
+class AdminItemCodeUpdateRequest(BaseModel):
+    item_name: str = Field(min_length=1, max_length=120)
+    memo: str | None = None
+    is_active: bool = True
+
+
+class AdminItemCodeRead(BaseModel):
+    item_code_id: int
+    item_code: str
+    item_name: str
+    memo: str | None
+    is_active: bool
+    is_deleted: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminItemCodeListResponse(BaseModel):
+    items: list[AdminItemCodeRead]
+    page: int
+    size: int
+    total_count: int
+    total_pages: int

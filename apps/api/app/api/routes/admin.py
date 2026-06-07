@@ -7,6 +7,10 @@ from app.api.deps import require_admin
 from app.db.session import get_db
 from app.models.auth import User
 from app.schemas.admin import (
+    AdminItemCodeCreateRequest,
+    AdminItemCodeListResponse,
+    AdminItemCodeRead,
+    AdminItemCodeUpdateRequest,
     AdminLotEventListResponse,
     AdminPostListResponse,
     AdminUserDetail,
@@ -15,12 +19,17 @@ from app.schemas.admin import (
 )
 from app.schemas.fx import LedgerResponse
 from app.services.admin import (
+    create_admin_item_code,
+    deactivate_admin_item_code,
     get_admin_user,
+    get_admin_item_code,
     get_admin_user_detail,
+    list_admin_item_codes,
     list_admin_lot_events,
     list_admin_posts,
     list_admin_users,
     to_admin_user_list_item,
+    update_admin_item_code,
 )
 from app.services.fx import list_ledger
 
@@ -124,3 +133,84 @@ def list_lot_events_route(
         sell_transaction_id=sell_transaction_id,
         root_buy_lot_id=root_buy_lot_id,
     )
+
+
+@router.get("/item-codes", response_model=AdminItemCodeListResponse)
+def list_item_codes_route(
+    db: Annotated[Session, Depends(get_db)],
+    _admin_user: Annotated[User, Depends(require_admin)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    keyword: str | None = None,
+    is_active: bool | None = None,
+) -> AdminItemCodeListResponse:
+    return list_admin_item_codes(
+        db,
+        page=page,
+        size=size,
+        keyword=keyword,
+        is_active=is_active,
+    )
+
+
+@router.post("/item-codes", response_model=AdminItemCodeRead, status_code=status.HTTP_201_CREATED)
+def create_item_code_route(
+    payload: AdminItemCodeCreateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    admin_user: Annotated[User, Depends(require_admin)],
+) -> AdminItemCodeRead:
+    try:
+        code = create_admin_item_code(
+            db,
+            admin_user=admin_user,
+            item_name=payload.item_name,
+            memo=payload.memo,
+            is_active=payload.is_active,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+    db.commit()
+    return code
+
+
+@router.put("/item-codes/{item_code_id}", response_model=AdminItemCodeRead)
+def update_item_code_route(
+    item_code_id: int,
+    payload: AdminItemCodeUpdateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    admin_user: Annotated[User, Depends(require_admin)],
+) -> AdminItemCodeRead:
+    code = get_admin_item_code(db, item_code_id=item_code_id)
+    if code is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item code not found")
+
+    try:
+        updated = update_admin_item_code(
+            db,
+            admin_user=admin_user,
+            code=code,
+            item_name=payload.item_name,
+            memo=payload.memo,
+            is_active=payload.is_active,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+
+    db.commit()
+    return updated
+
+
+@router.delete("/item-codes/{item_code_id}", response_model=AdminItemCodeRead)
+def deactivate_item_code_route(
+    item_code_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    admin_user: Annotated[User, Depends(require_admin)],
+) -> AdminItemCodeRead:
+    code = get_admin_item_code(db, item_code_id=item_code_id)
+    if code is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item code not found")
+
+    deactivated = deactivate_admin_item_code(db, admin_user=admin_user, code=code)
+    db.commit()
+    return deactivated

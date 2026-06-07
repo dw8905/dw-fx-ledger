@@ -202,6 +202,64 @@ def test_admin_posts_pagination_search_and_status_filter() -> None:
     assert all(item["post_status"] == "deleted" for item in deleted_body["items"])
 
 
+def test_admin_item_codes_crud_and_regular_user_forbidden() -> None:
+    if not inspect(engine).has_table("item_codes"):
+        pytest.skip("item code migration is generated but not applied")
+
+    user_client = TestClient(app)
+    admin_client = TestClient(app)
+    register_user(user_client, uuid4().hex[:12])
+    admin = register_user(admin_client, uuid4().hex[:12])
+    grant_admin(admin["login_id"])
+    unique = uuid4().hex[:8]
+    item_name = f"디바인스톤 {unique}"
+
+    forbidden_response = user_client.get("/admin/item-codes")
+    assert forbidden_response.status_code == 403
+
+    create_response = admin_client.post(
+        "/admin/item-codes",
+        json={
+            "item_name": item_name,
+            "memo": "테스트 코드",
+            "is_active": True,
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    created = create_response.json()
+    assert created["item_code"].startswith("ITEM-")
+    assert created["item_name"] == item_name
+    assert created["is_active"] is True
+
+    duplicate_response = admin_client.post(
+        "/admin/item-codes",
+        json={
+            "item_name": "중복",
+            "is_active": True,
+        },
+    )
+    assert duplicate_response.status_code == 201
+
+    list_response = admin_client.get(f"/admin/item-codes?keyword={unique}")
+    assert list_response.status_code == 200, list_response.text
+    assert any(item["item_code_id"] == created["item_code_id"] for item in list_response.json()["items"])
+
+    update_response = admin_client.put(
+        f"/admin/item-codes/{created['item_code_id']}",
+        json={
+            "item_name": "디바인 스톤",
+            "memo": "수정",
+            "is_active": True,
+        },
+    )
+    assert update_response.status_code == 200, update_response.text
+    assert update_response.json()["item_name"] == "디바인 스톤"
+
+    deactivate_response = admin_client.delete(f"/admin/item-codes/{created['item_code_id']}")
+    assert deactivate_response.status_code == 200, deactivate_response.text
+    assert deactivate_response.json()["is_active"] is False
+
+
 def test_admin_can_read_user_ledger_and_lot_events() -> None:
     require_fx_lot_events_table()
 
