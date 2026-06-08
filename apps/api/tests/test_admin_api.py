@@ -234,11 +234,11 @@ def test_admin_item_codes_crud_and_regular_user_forbidden() -> None:
     duplicate_response = admin_client.post(
         "/admin/item-codes",
         json={
-            "item_name": "중복",
+            "item_name": item_name,
             "is_active": True,
         },
     )
-    assert duplicate_response.status_code == 201
+    assert duplicate_response.status_code == 409
 
     list_response = admin_client.get(f"/admin/item-codes?keyword={unique}")
     assert list_response.status_code == 200, list_response.text
@@ -247,13 +247,13 @@ def test_admin_item_codes_crud_and_regular_user_forbidden() -> None:
     update_response = admin_client.put(
         f"/admin/item-codes/{created['item_code_id']}",
         json={
-            "item_name": "디바인 스톤",
+            "item_name": f"디바인 스톤 {unique}",
             "memo": "수정",
             "is_active": True,
         },
     )
     assert update_response.status_code == 200, update_response.text
-    assert update_response.json()["item_name"] == "디바인 스톤"
+    assert update_response.json()["item_name"] == f"디바인 스톤 {unique}"
 
     deactivate_response = admin_client.delete(f"/admin/item-codes/{created['item_code_id']}")
     assert deactivate_response.status_code == 200, deactivate_response.text

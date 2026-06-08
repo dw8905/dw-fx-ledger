@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGuard } from "../../src/components/auth-guard";
 import { Pagination } from "../../src/components/pagination";
+import { SectionTabs, type SectionTabItem } from "../../src/components/section-tabs";
 import { formatDate, formatKrwCurrency } from "../../src/lib/format";
 import {
   cancelItemTrade,
@@ -18,11 +20,18 @@ import {
 type ItemTab = "buy" | "sell" | "inventory";
 type TradeType = "buy" | "sell" | "adjustment";
 
-const tabs: Array<{ id: ItemTab; label: string }> = [
-  { id: "buy", label: "매수" },
-  { id: "sell", label: "매도" },
-  { id: "inventory", label: "아이템별 재고관리" }
+const tabs: Array<SectionTabItem<ItemTab>> = [
+  { id: "buy", href: "/item-trades?tab=buy", label: "매수" },
+  { id: "sell", href: "/item-trades?tab=sell", label: "매도" },
+  { id: "inventory", href: "/item-trades?tab=inventory", label: "아이템별 재고관리" }
 ];
+
+function parseItemTab(value: string | null): ItemTab {
+  if (value === "sell" || value === "inventory") {
+    return value;
+  }
+  return "buy";
+}
 
 function today() {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -361,7 +370,8 @@ function InventoryTable({
 }
 
 function ItemTradesContent() {
-  const [activeTab, setActiveTab] = useState<ItemTab>("buy");
+  const searchParams = useSearchParams();
+  const activeTab = parseItemTab(searchParams.get("tab"));
   const [codes, setCodes] = useState<ItemCode[]>([]);
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
@@ -391,6 +401,10 @@ function ItemTradesContent() {
   useEffect(() => {
     loadTrades();
   }, [loadTrades]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
 
   const buyItems = useMemo(
     () => data?.items.filter((item) => item.tradeType === "buy") ?? [],
@@ -470,81 +484,76 @@ function ItemTradesContent() {
   }
 
   return (
-    <main className="content-page trade-page">
-      <section className="content-header">
-        <div>
-          <p className="eyebrow">Item Trade</p>
-          <h1>아이템</h1>
-        </div>
-      </section>
+    <>
+      <div className="section-tabs-frame">
+        <SectionTabs activeId={activeTab} ariaLabel="아이템 기능" items={tabs} />
+      </div>
 
-      <nav className="sub-tabs" aria-label="아이템 기능">
-        {tabs.map((tab) => (
-          <button
-            aria-current={activeTab === tab.id ? "page" : undefined}
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      <main className="content-page trade-page">
+        <section className="content-header">
+          <div>
+            <p className="eyebrow">Item Trade</p>
+            <h1>아이템</h1>
+          </div>
+        </section>
 
-      {error ? <p className="form-error">{error}</p> : null}
-      {activeTab === "buy" ? (
-        <>
-          <ItemTradeForm
-            codes={codes}
-            summaries={data?.summaries ?? []}
-            tradeType="buy"
-            onSaved={refreshAfterSave}
+        {error ? <p className="form-error">{error}</p> : null}
+        {activeTab === "buy" ? (
+          <>
+            <ItemTradeForm
+              codes={codes}
+              summaries={data?.summaries ?? []}
+              tradeType="buy"
+              onSaved={refreshAfterSave}
+            />
+            <h2 className="section-title">매수 트랜잭션</h2>
+            <TradeTable items={buyItems} tradeType="buy" onCancelled={refreshAfterSave} />
+          </>
+        ) : null}
+        {activeTab === "sell" ? (
+          <>
+            <ItemTradeForm
+              codes={codes}
+              summaries={data?.summaries ?? []}
+              tradeType="sell"
+              onSaved={refreshAfterSave}
+            />
+            <h2 className="section-title">매도 트랜잭션</h2>
+            <TradeTable items={sellItems} tradeType="sell" onCancelled={refreshAfterSave} />
+          </>
+        ) : null}
+        {activeTab === "inventory" ? (
+          <>
+            <h2 className="section-title">아이템별 재고관리</h2>
+            <InventoryTable summaries={data?.summaries ?? []} onAdjusted={(summary) => void handleInventoryAdjust(summary)} />
+            <h2 className="section-title">재고 조정 기록</h2>
+            <TradeTable items={adjustmentItems} tradeType="adjustment" onCancelled={refreshAfterSave} />
+          </>
+        ) : null}
+
+        {activeTab !== "inventory" && data ? (
+          <Pagination
+            page={data.page}
+            size={data.size}
+            totalCount={data.totalCount}
+            onPageChange={setPage}
+            onSizeChange={(nextSize) => {
+              setSize(nextSize);
+              setPage(1);
+            }}
           />
-          <h2 className="section-title">매수 트랜잭션</h2>
-          <TradeTable items={buyItems} tradeType="buy" onCancelled={refreshAfterSave} />
-        </>
-      ) : null}
-      {activeTab === "sell" ? (
-        <>
-          <ItemTradeForm
-            codes={codes}
-            summaries={data?.summaries ?? []}
-            tradeType="sell"
-            onSaved={refreshAfterSave}
-          />
-          <h2 className="section-title">매도 트랜잭션</h2>
-          <TradeTable items={sellItems} tradeType="sell" onCancelled={refreshAfterSave} />
-        </>
-      ) : null}
-      {activeTab === "inventory" ? (
-        <>
-          <h2 className="section-title">아이템별 재고관리</h2>
-          <InventoryTable summaries={data?.summaries ?? []} onAdjusted={(summary) => void handleInventoryAdjust(summary)} />
-          <h2 className="section-title">재고 조정 기록</h2>
-          <TradeTable items={adjustmentItems} tradeType="adjustment" onCancelled={refreshAfterSave} />
-        </>
-      ) : null}
-
-      {activeTab !== "inventory" && data ? (
-        <Pagination
-          page={data.page}
-          size={data.size}
-          totalCount={data.totalCount}
-          onPageChange={setPage}
-          onSizeChange={(nextSize) => {
-            setSize(nextSize);
-            setPage(1);
-          }}
-        />
-      ) : null}
-    </main>
+        ) : null}
+      </main>
+    </>
   );
 }
 
 export default function ItemTradesPage() {
   return (
     <AuthGuard>
-      <ItemTradesContent />
+      <Suspense fallback={<main className="content-page trade-page">아이템 화면을 불러오는 중입니다.</main>}>
+        <ItemTradesContent />
+      </Suspense>
     </AuthGuard>
   );
 }

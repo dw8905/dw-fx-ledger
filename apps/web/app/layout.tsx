@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Header } from "../src/components/header";
 import { AuthProvider } from "../src/context/auth-context";
 import "./globals.css";
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="ko">
       <body>
         <AuthProvider>
-          <Header />
+          <Suspense fallback={null}>
+            <Header />
+          </Suspense>
           {children}
         </AuthProvider>
       </body>

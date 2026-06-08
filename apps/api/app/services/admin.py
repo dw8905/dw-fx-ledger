@@ -348,6 +348,17 @@ def item_code_exists(db: Session, *, item_code: str, exclude_item_code_id: int |
     return (db.scalar(select(func.count()).select_from(ItemCode).where(*filters)) or 0) > 0
 
 
+def item_name_exists(db: Session, *, item_name: str, exclude_item_code_id: int | None = None) -> bool:
+    normalized_name = item_name.strip()
+    filters = [
+        func.lower(ItemCode.item_name) == normalized_name.lower(),
+        ItemCode.is_deleted.is_(False),
+    ]
+    if exclude_item_code_id is not None:
+        filters.append(ItemCode.item_code_id != exclude_item_code_id)
+    return (db.scalar(select(func.count()).select_from(ItemCode).where(*filters)) or 0) > 0
+
+
 def create_admin_item_code(
     db: Session,
     *,
@@ -356,6 +367,9 @@ def create_admin_item_code(
     memo: str | None,
     is_active: bool,
 ) -> AdminItemCodeRead:
+    if item_name_exists(db, item_name=item_name):
+        raise ValueError("Item name already exists")
+
     code = ItemCode(
         user_id=None,
         item_code=f"PENDING-{uuid4().hex}",
@@ -382,6 +396,9 @@ def update_admin_item_code(
     memo: str | None,
     is_active: bool,
 ) -> AdminItemCodeRead:
+    if item_name_exists(db, item_name=item_name, exclude_item_code_id=code.item_code_id):
+        raise ValueError("Item name already exists")
+
     code.item_name = item_name.strip()
     code.memo = memo
     code.is_active = is_active

@@ -2,12 +2,15 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import inspect
+from sqlalchemy import delete, inspect, select
 
 from app.db.session import SessionLocal, engine
 from app.main import app
+from app.models.item_trade import ItemCode, ItemTrade
 from app.services.auth import get_user_by_identifier
 from app.services.roles import ensure_base_roles, grant_admin_role
+
+TEST_ITEM_PREFIX = "[TEST]"
 
 
 def require_item_tables() -> None:
@@ -39,14 +42,28 @@ def grant_admin(login_id: str) -> None:
         db.commit()
 
 
+@pytest.fixture(autouse=True)
+def cleanup_test_item_codes():
+    yield
+    with SessionLocal() as db:
+        test_code_ids = db.scalars(
+            select(ItemCode.item_code_id).where(ItemCode.item_name.like(f"{TEST_ITEM_PREFIX}%"))
+        ).all()
+        if test_code_ids:
+            db.execute(delete(ItemTrade).where(ItemTrade.item_code_id.in_(test_code_ids)))
+            db.execute(delete(ItemCode).where(ItemCode.item_code_id.in_(test_code_ids)))
+            db.commit()
+
+
 def create_admin_item_code(item_name: str = "디바인스톤") -> str:
     admin_client = TestClient(app)
     admin = register_user(admin_client, uuid4().hex[:12])
     grant_admin(admin["login_id"])
+    test_item_name = f"{TEST_ITEM_PREFIX} {item_name} {uuid4().hex[:8]}"
     response = admin_client.post(
         "/admin/item-codes",
         json={
-            "item_name": item_name,
+            "item_name": test_item_name,
             "is_active": True,
         },
     )

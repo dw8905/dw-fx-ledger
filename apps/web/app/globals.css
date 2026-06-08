@@ -40,10 +40,25 @@ textarea {
   background: #ffffff;
 }
 
-.brand {
+.brand,
+.brand-breadcrumb a {
   font-size: 17px;
   font-weight: 800;
   text-decoration: none;
+}
+
+.brand-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #17201b;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.brand-breadcrumb span {
+  color: #52705e;
 }
 
 .header-nav {
@@ -601,16 +616,33 @@ p {
   width: min(100%, 1240px);
 }
 
+.section-tabs-frame {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 40px 32px 0;
+}
+
+.section-tabs-frame + .content-page {
+  padding-top: 24px;
+}
+
+.section-tabs,
 .sub-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: -8px 0 24px;
+  margin: 0 0 24px;
   padding-bottom: 12px;
   border-bottom: 1px solid #dce4dd;
 }
 
-.sub-tabs button {
+.section-tabs button,
+.section-tabs a,
+.sub-tabs button,
+.sub-tabs a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 38px;
   border: 1px solid #9aaea0;
   border-radius: 6px;
@@ -619,9 +651,13 @@ p {
   background: #ffffff;
   cursor: pointer;
   font-weight: 800;
+  text-decoration: none;
 }
 
-.sub-tabs button[aria-current="page"] {
+.section-tabs button[aria-current="page"],
+.section-tabs a[aria-current="page"],
+.sub-tabs button[aria-current="page"],
+.sub-tabs a[aria-current="page"] {
   color: #ffffff;
   background: #2e6140;
   border-color: #2e6140;
