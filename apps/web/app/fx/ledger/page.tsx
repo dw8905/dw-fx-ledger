@@ -31,6 +31,68 @@ function formatNullableKrw(value: number | null) {
   return value === null ? "" : formatKrwCurrency(value);
 }
 
+function escapeCsvCell(value: string | number | null) {
+  const text = value === null ? "" : String(value);
+  return `"${text.replaceAll("\"", "\"\"")}"`;
+}
+
+function buildLedgerCsv(data: LedgerResponse) {
+  const headers = [
+    "매수일",
+    "매수원화환전금액",
+    "매수적용환율",
+    "달러환전금액",
+    "매도일",
+    "매도적용환율",
+    "매도원화환전금액",
+    "차익",
+    "환율차",
+    "환율차이평균"
+  ];
+  const rows = data.items.map((row) => [
+    formatCompactDate(row.buyDate),
+    formatKrwCurrency(row.buyKrwAmount),
+    formatKrwRate(row.buyExchangeRate),
+    formatUsdCurrency(row.usdAmount),
+    formatNullableDate(row.sellDate),
+    formatNullableKrwRate(row.sellExchangeRate),
+    formatNullableKrw(row.sellKrwAmount),
+    formatKrwCurrency(row.profitKrw),
+    formatKrwRate(row.exchangeDiff),
+    formatNullableKrwRate(row.exchangeDiffAverage)
+  ]);
+
+  return [headers, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
+function downloadCsv(filename: string, csv: string) {
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function getCsvFilename(period: string) {
+  const timestamp = new Intl.DateTimeFormat("sv-SE", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+    second: "2-digit",
+    timeZone: "Asia/Seoul",
+    year: "numeric"
+  })
+    .format(new Date())
+    .replaceAll(" ", "_")
+    .replaceAll(":", "");
+  return `fx-ledger-${period}-${timestamp}.csv`;
+}
+
 function LedgerContent() {
   const [period, setPeriod] = useState("all");
   const [data, setData] = useState<LedgerResponse | null>(null);
@@ -45,6 +107,14 @@ function LedgerContent() {
       );
   }, [period]);
 
+  function handleCsvDownload() {
+    if (!data || data.items.length === 0) {
+      return;
+    }
+
+    downloadCsv(getCsvFilename(data.period), buildLedgerCsv(data));
+  }
+
   return (
     <main className="content-page ledger-page">
       <section className="content-header">
@@ -52,16 +122,26 @@ function LedgerContent() {
           <p className="eyebrow">FX Ledger</p>
           <h1>FX 원장</h1>
         </div>
-        <label className="period-select">
-          기간 보기
-          <select value={period} onChange={(event) => setPeriod(event.target.value)}>
-            {periodOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="ledger-actions">
+          <label className="period-select">
+            기간 보기
+            <select value={period} onChange={(event) => setPeriod(event.target.value)}>
+              {periodOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="secondary-button"
+            disabled={!data || data.items.length === 0}
+            type="button"
+            onClick={handleCsvDownload}
+          >
+            CSV 추출
+          </button>
+        </div>
       </section>
 
       {error ? <p className="form-error">{error}</p> : null}

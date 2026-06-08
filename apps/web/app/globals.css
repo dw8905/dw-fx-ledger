@@ -586,6 +586,14 @@ p {
   background: #ffffff;
 }
 
+.ledger-actions {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .ledger-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
