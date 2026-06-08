@@ -26,10 +26,10 @@ class ItemCodeListResponse(BaseModel):
 class ItemTradeCreateRequest(BaseModel):
     itemCode: str = Field(min_length=1, max_length=80)
     itemName: str = Field(min_length=1, max_length=120)
-    tradeType: str = Field(pattern="^(buy|sell)$")
+    tradeType: str = Field(pattern="^(buy|sell|adjustment)$")
     tradeDate: date
     unitPrice: int = Field(ge=1)
-    quantity: int = Field(ge=1)
+    quantity: int
     feeRate: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), lt=Decimal("1"))
     memo: str | None = None
 

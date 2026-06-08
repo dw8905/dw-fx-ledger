@@ -16,6 +16,7 @@ from app.schemas.item_trades import (
 
 BUY = "buy"
 SELL = "sell"
+ADJUSTMENT = "adjustment"
 ACTIVE = "active"
 CANCELLED = "cancelled"
 FEE_SCALE = Decimal("0.000001")
@@ -139,8 +140,10 @@ def create_item_trade(
     fee_rate: Decimal,
     memo: str | None = None,
 ) -> ItemTradeRead:
-    if trade_type not in {BUY, SELL}:
+    if trade_type not in {BUY, SELL, ADJUSTMENT}:
         raise ValueError("Invalid trade_type")
+    if trade_type in {BUY, SELL} and quantity <= 0:
+        raise ValueError("Quantity must be positive")
 
     normalized_fee_rate = quantize_fee_rate(fee_rate)
     code = ensure_item_code(
@@ -164,13 +167,25 @@ def create_item_trade(
             current_value=current_value or 0,
             memo=memo,
         )
-    else:
+    elif trade_type == SELL:
         trade = build_sell_trade(
             current_user=current_user,
             code=code,
             trade_date=trade_date,
             unit_price=unit_price,
             quantity=quantity,
+            fee_rate=normalized_fee_rate,
+            current_quantity=current_quantity or 0,
+            current_value=current_value or 0,
+            memo=memo,
+        )
+    else:
+        trade = build_adjustment_trade(
+            current_user=current_user,
+            code=code,
+            trade_date=trade_date,
+            unit_price=unit_price,
+            quantity_delta=quantity,
             fee_rate=normalized_fee_rate,
             current_quantity=current_quantity or 0,
             current_value=current_value or 0,
@@ -284,6 +299,70 @@ def build_sell_trade(
     )
 
 
+def build_adjustment_trade(
+    *,
+    current_user: User,
+    code: ItemCode,
+    trade_date,
+    unit_price: int,
+    quantity_delta: int,
+    fee_rate: Decimal,
+    current_quantity: int,
+    current_value: int,
+    memo: str | None,
+) -> ItemTrade:
+    if quantity_delta == 0:
+        raise ValueError("Adjustment quantity must not be zero")
+    if current_quantity + quantity_delta < 0:
+        raise ValueError("Adjustment would make item inventory negative")
+
+    effective_unit_price = (
+        ceil_divide(current_value, current_quantity)
+        if quantity_delta < 0 and current_quantity and current_value
+        else unit_price
+    )
+    adjustment_value = effective_unit_price * quantity_delta
+    inventory_quantity_after = current_quantity + quantity_delta
+    inventory_value_after = current_value + adjustment_value
+    if inventory_quantity_after == 0:
+        inventory_value_after = 0
+    average_buy_unit_price = (
+        ceil_divide(inventory_value_after, inventory_quantity_after)
+        if inventory_quantity_after and inventory_value_after
+        else 0
+    )
+    minimum_profitable_unit_price = (
+        calculate_minimum_profitable_unit_price(average_buy_unit_price, effective_inventory_fee_rate(fee_rate))
+        if average_buy_unit_price
+        else 0
+    )
+    return ItemTrade(
+        user_id=current_user.user_id,
+        item_code_id=code.item_code_id,
+        trade_type=ADJUSTMENT,
+        trade_status=ACTIVE,
+        item_name=code.item_name,
+        buy_date=trade_date,
+        buy_unit_price=effective_unit_price,
+        quantity=quantity_delta,
+        fee_rate=fee_rate,
+        minimum_profitable_unit_price=minimum_profitable_unit_price,
+        average_buy_unit_price=average_buy_unit_price,
+        inventory_quantity_after=inventory_quantity_after,
+        inventory_value_after=inventory_value_after,
+        sell_date=None,
+        sell_unit_price=None,
+        total_buy_amount=adjustment_value,
+        total_sell_amount=None,
+        fee_amount=None,
+        net_sell_amount=None,
+        profit_amount=None,
+        memo=memo,
+        created_by=current_user.user_id,
+        updated_by=current_user.user_id,
+    )
+
+
 def recalculate_item_trades_for_code(
     db: Session,
     *,
@@ -317,7 +396,7 @@ def recalculate_item_trades_for_code(
             trade.fee_amount = None
             trade.net_sell_amount = None
             trade.profit_amount = None
-        else:
+        elif trade.trade_type == SELL:
             if current_quantity < trade.quantity:
                 raise ValueError("Cancellation would make item inventory negative")
 
@@ -338,12 +417,32 @@ def recalculate_item_trades_for_code(
             trade.profit_amount = net_sell_amount - cost_basis
             current_quantity -= trade.quantity
             current_value = 0 if current_quantity == 0 else current_value - cost_basis
+        else:
+            if current_quantity + trade.quantity < 0:
+                raise ValueError("Adjustment would make item inventory negative")
+            effective_unit_price = (
+                ceil_divide(current_value, current_quantity)
+                if trade.quantity < 0 and current_quantity and current_value
+                else trade.buy_unit_price
+            )
+            adjustment_value = effective_unit_price * trade.quantity
+            current_quantity += trade.quantity
+            current_value += adjustment_value
+            if current_quantity == 0:
+                current_value = 0
+            average_buy_unit_price = ceil_divide(current_value, current_quantity) if current_quantity and current_value else 0
+            trade.buy_unit_price = effective_unit_price
+            trade.total_buy_amount = adjustment_value
+            trade.total_sell_amount = None
+            trade.fee_amount = None
+            trade.net_sell_amount = None
+            trade.profit_amount = None
 
         trade.average_buy_unit_price = average_buy_unit_price
         trade.minimum_profitable_unit_price = calculate_minimum_profitable_unit_price(
             average_buy_unit_price,
-            trade.fee_rate,
-        )
+            effective_inventory_fee_rate(trade.fee_rate),
+        ) if average_buy_unit_price else 0
         trade.inventory_quantity_after = current_quantity
         trade.inventory_value_after = current_value
         trade.updated_by = current_user.user_id

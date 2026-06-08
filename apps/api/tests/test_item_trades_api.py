@@ -184,6 +184,81 @@ def test_inventory_summary_defaults_zero_fee_to_five_percent() -> None:
     assert summary["minimumProfitableUnitPrice"] == 974269
 
 
+def test_inventory_adjustment_inserts_auditable_quantity_delta() -> None:
+    require_item_tables()
+
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+    item_code = create_admin_item_code("카오스코어")
+
+    buy = client.post(
+        "/item-trades",
+        json={
+            "itemCode": item_code,
+            "itemName": "카오스코어",
+            "tradeType": "buy",
+            "tradeDate": "2026-06-07",
+            "unitPrice": 1000,
+            "quantity": 10,
+            "feeRate": "0.05",
+        },
+    )
+    assert buy.status_code == 201, buy.text
+
+    increase = client.post(
+        "/item-trades",
+        json={
+            "itemCode": item_code,
+            "itemName": "카오스코어",
+            "tradeType": "adjustment",
+            "tradeDate": "2026-06-08",
+            "unitPrice": 2000,
+            "quantity": 5,
+            "feeRate": "0.05",
+            "memo": "actual inventory increase",
+        },
+    )
+    assert increase.status_code == 201, increase.text
+    assert increase.json()["tradeType"] == "adjustment"
+    assert increase.json()["quantity"] == 5
+    assert increase.json()["inventoryQuantityAfter"] == 15
+    assert increase.json()["inventoryValueAfter"] == 20000
+    assert increase.json()["averageBuyUnitPrice"] == 1334
+    assert increase.json()["minimumProfitableUnitPrice"] == 1405
+
+    decrease = client.post(
+        "/item-trades",
+        json={
+            "itemCode": item_code,
+            "itemName": "카오스코어",
+            "tradeType": "adjustment",
+            "tradeDate": "2026-06-08",
+            "unitPrice": 999999,
+            "quantity": -3,
+            "feeRate": "0.05",
+            "memo": "actual inventory decrease",
+        },
+    )
+    assert decrease.status_code == 201, decrease.text
+    assert decrease.json()["tradeType"] == "adjustment"
+    assert decrease.json()["quantity"] == -3
+    assert decrease.json()["unitPrice"] == 1334
+    assert decrease.json()["inventoryQuantityAfter"] == 12
+    assert decrease.json()["inventoryValueAfter"] == 15998
+    assert decrease.json()["averageBuyUnitPrice"] == 1334
+
+    list_response = client.get("/item-trades?page=1&size=10")
+    assert list_response.status_code == 200, list_response.text
+    body = list_response.json()
+    adjustment_rows = [item for item in body["items"] if item["tradeType"] == "adjustment"]
+    assert len(adjustment_rows) == 2
+    summary = next(item for item in body["summaries"] if item["itemCode"] == item_code)
+    assert summary["inventoryQuantity"] == 12
+    assert summary["inventoryValue"] == 15998
+    assert summary["averageBuyUnitPrice"] == 1334
+    assert summary["minimumProfitableUnitPrice"] == 1405
+
+
 def test_sell_rejects_insufficient_inventory_and_user_scope() -> None:
     require_item_tables()
 

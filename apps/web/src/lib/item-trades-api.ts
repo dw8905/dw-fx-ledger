@@ -24,7 +24,7 @@ export type ItemTrade = {
   itemCodeId: number | null;
   itemCode: string | null;
   itemName: string;
-  tradeType: "buy" | "sell";
+  tradeType: "buy" | "sell" | "adjustment";
   tradeStatus: "active" | "cancelled";
   tradeDate: string;
   unitPrice: number;
@@ -60,7 +60,7 @@ export type ItemTradeListResponse = {
 export type ItemTradeInput = {
   itemCode: string;
   itemName: string;
-  tradeType: "buy" | "sell";
+  tradeType: "buy" | "sell" | "adjustment";
   tradeDate: string;
   unitPrice: number;
   quantity: number;

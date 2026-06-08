@@ -16,7 +16,7 @@ import {
 } from "../../src/lib/item-trades-api";
 
 type ItemTab = "buy" | "sell" | "inventory";
-type TradeType = "buy" | "sell";
+type TradeType = "buy" | "sell" | "adjustment";
 
 const tabs: Array<{ id: ItemTab; label: string }> = [
   { id: "buy", label: "매수" },
@@ -233,7 +233,8 @@ function TradeTable({
   tradeType: TradeType;
 }) {
   async function handleCancel(trade: ItemTrade) {
-    const reason = window.prompt(`${trade.itemName} ${tradeType === "buy" ? "매수" : "매도"} 기록을 취소할까요? 취소 사유를 입력할 수 있습니다.`);
+    const tradeLabel = tradeType === "buy" ? "매수" : tradeType === "sell" ? "매도" : "조정";
+    const reason = window.prompt(`${trade.itemName} ${tradeLabel} 기록을 취소할까요? 취소 사유를 입력할 수 있습니다.`);
     if (reason === null) {
       return;
     }
@@ -250,8 +251,8 @@ function TradeTable({
             <th>아이템명</th>
             <th>상태</th>
             <th>거래일</th>
-            <th>단가</th>
-            <th>수량</th>
+            <th>{tradeType === "adjustment" ? "조정단가" : "단가"}</th>
+            <th>{tradeType === "adjustment" ? "조정수량" : "수량"}</th>
             <th>평균단가</th>
             <th>최소판매가</th>
             {tradeType === "sell" ? (
@@ -308,7 +309,13 @@ function TradeTable({
   );
 }
 
-function InventoryTable({ summaries }: { summaries: ItemCodeSummary[] }) {
+function InventoryTable({
+  onAdjusted,
+  summaries
+}: {
+  onAdjusted: (summary: ItemCodeSummary) => void;
+  summaries: ItemCodeSummary[];
+}) {
   return (
     <div className="table-wrap">
       <table className="post-table">
@@ -320,12 +327,13 @@ function InventoryTable({ summaries }: { summaries: ItemCodeSummary[] }) {
             <th>평균단가</th>
             <th>최소 이득 판매가</th>
             <th>총 수익</th>
+            <th>작업</th>
           </tr>
         </thead>
         <tbody>
           {summaries.length === 0 ? (
             <tr>
-              <td colSpan={6}>재고가 없습니다.</td>
+              <td colSpan={7}>재고가 없습니다.</td>
             </tr>
           ) : (
             summaries.map((summary) => (
@@ -337,6 +345,11 @@ function InventoryTable({ summaries }: { summaries: ItemCodeSummary[] }) {
                 <td>{formatKrwCurrency(summary.minimumProfitableUnitPrice)}</td>
                 <td className={summary.totalProfitAmount > 0 ? "profit-strong" : ""}>
                   {formatKrwCurrency(summary.totalProfitAmount)}
+                </td>
+                <td>
+                  <button className="link-button" type="button" onClick={() => onAdjusted(summary)}>
+                    조정
+                  </button>
                 </td>
               </tr>
             ))
@@ -387,10 +400,73 @@ function ItemTradesContent() {
     () => data?.items.filter((item) => item.tradeType === "sell") ?? [],
     [data]
   );
+  const adjustmentItems = useMemo(
+    () => data?.items.filter((item) => item.tradeType === "adjustment") ?? [],
+    [data]
+  );
 
   async function refreshAfterSave() {
     setPage(1);
     await Promise.all([loadCodes(), listItemTrades(1, size).then(setData)]);
+  }
+
+  async function handleInventoryAdjust(summary: ItemCodeSummary) {
+    const actualQuantityText = window.prompt(
+      `${summary.itemName} 실제 보유 수량을 입력해주세요.`,
+      String(summary.inventoryQuantity)
+    );
+    if (actualQuantityText === null) {
+      return;
+    }
+
+    const actualQuantity = Number(actualQuantityText);
+    if (!Number.isInteger(actualQuantity) || actualQuantity < 0) {
+      setError("실제 보유 수량은 0 이상의 정수로 입력해주세요.");
+      return;
+    }
+
+    const quantityDelta = actualQuantity - summary.inventoryQuantity;
+    if (quantityDelta === 0) {
+      return;
+    }
+
+    let unitPrice = summary.averageBuyUnitPrice || 1;
+    if (quantityDelta > 0) {
+      const unitPriceText = window.prompt(
+        `${summary.itemName} 증가 수량에 적용할 단가를 입력해주세요.`,
+        String(unitPrice)
+      );
+      if (unitPriceText === null) {
+        return;
+      }
+
+      unitPrice = Number(unitPriceText);
+      if (!Number.isInteger(unitPrice) || unitPrice <= 0) {
+        setError("조정 단가는 1 이상의 정수로 입력해주세요.");
+        return;
+      }
+    }
+
+    const reason = window.prompt("조정 사유를 입력해주세요.", "실제 재고 수량 보정");
+    if (reason === null) {
+      return;
+    }
+
+    try {
+      await createItemTrade({
+        itemCode: summary.itemCode,
+        itemName: summary.itemName,
+        tradeType: "adjustment",
+        tradeDate: today(),
+        unitPrice,
+        quantity: quantityDelta,
+        feeRate: "0.05",
+        memo: reason || "실제 재고 수량 보정"
+      });
+      await refreshAfterSave();
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "재고 조정에 실패했습니다.");
+    }
   }
 
   return (
@@ -443,7 +519,9 @@ function ItemTradesContent() {
       {activeTab === "inventory" ? (
         <>
           <h2 className="section-title">아이템별 재고관리</h2>
-          <InventoryTable summaries={data?.summaries ?? []} />
+          <InventoryTable summaries={data?.summaries ?? []} onAdjusted={(summary) => void handleInventoryAdjust(summary)} />
+          <h2 className="section-title">재고 조정 기록</h2>
+          <TradeTable items={adjustmentItems} tradeType="adjustment" onCancelled={refreshAfterSave} />
         </>
       ) : null}
 
