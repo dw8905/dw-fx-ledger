@@ -8,7 +8,7 @@ import { useAuth } from "../context/auth-context";
 const navItems = [
   { href: "/admin/users", label: "사용자" },
   { href: "/admin/posts", label: "게시글" },
-  { href: "/admin/item-codes", label: "아이템 코드" },
+  { href: "/admin/item-codes", label: "자산 코드" },
   { href: "/admin/fx/ledger", label: "FX 원장" },
   { href: "/admin/fx/events", label: "FX 이벤트" }
 ];

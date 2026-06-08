@@ -368,7 +368,7 @@ def create_admin_item_code(
     is_active: bool,
 ) -> AdminItemCodeRead:
     if item_name_exists(db, item_name=item_name):
-        raise ValueError("Item name already exists")
+        raise ValueError("Asset name already exists")
 
     code = ItemCode(
         user_id=None,
@@ -397,7 +397,7 @@ def update_admin_item_code(
     is_active: bool,
 ) -> AdminItemCodeRead:
     if item_name_exists(db, item_name=item_name, exclude_item_code_id=code.item_code_id):
-        raise ValueError("Item name already exists")
+        raise ValueError("Asset name already exists")
 
     code.item_name = item_name.strip()
     code.memo = memo

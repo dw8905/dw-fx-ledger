@@ -61,7 +61,7 @@ def create_item_code(
     normalized_code = normalize_item_code(item_code)
     existing = get_item_code_by_code(db, item_code=normalized_code, include_inactive=True)
     if existing is not None:
-        raise ValueError("Item code already exists")
+        raise ValueError("Asset code already exists")
 
     code = ItemCode(
         user_id=None,
@@ -89,7 +89,7 @@ def ensure_item_code(
     if existing is not None:
         return existing
 
-    raise ValueError("Item code not found")
+    raise ValueError("Asset code not found")
 
 
 def get_item_code_by_code(
@@ -467,9 +467,9 @@ def cancel_item_trade(
     if trade is None:
         return None
     if trade.trade_status == CANCELLED:
-        raise ValueError("Item trade is already cancelled")
+        raise ValueError("Asset trade is already cancelled")
     if trade.item_code_id is None:
-        raise ValueError("Item trade has no item code")
+        raise ValueError("Asset trade has no asset code")
 
     trade.trade_status = CANCELLED
     trade.cancelled_at = datetime.now(UTC)

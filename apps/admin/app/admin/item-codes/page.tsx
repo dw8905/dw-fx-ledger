@@ -57,7 +57,7 @@ function ItemCodesContent() {
     })
       .then(setData)
       .catch((caughtError) =>
-        setError(caughtError instanceof Error ? caughtError.message : "아이템 코드를 불러오지 못했습니다.")
+        setError(caughtError instanceof Error ? caughtError.message : "자산 코드를 불러오지 못했습니다.")
       );
   }, [filters, page, size]);
 
@@ -115,7 +115,7 @@ function ItemCodesContent() {
       resetForm();
       await reload();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "아이템 코드 저장에 실패했습니다.");
+      setError(caughtError instanceof Error ? caughtError.message : "자산 코드 저장에 실패했습니다.");
     } finally {
       setSaving(false);
     }
@@ -131,7 +131,7 @@ function ItemCodesContent() {
       await deactivateItemCode(code.item_code_id);
       await reload();
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "아이템 코드 비활성화에 실패했습니다.");
+      setError(caughtError instanceof Error ? caughtError.message : "자산 코드 비활성화에 실패했습니다.");
     }
   }
 
@@ -140,8 +140,8 @@ function ItemCodesContent() {
       <main className="content-page">
         <section className="content-header">
           <div>
-            <p className="eyebrow">Item Codes</p>
-            <h1>아이템 코드 관리</h1>
+            <p className="eyebrow">Asset Codes</p>
+            <h1>자산 코드 관리</h1>
           </div>
         </section>
 
@@ -149,7 +149,7 @@ function ItemCodesContent() {
           <label>
             검색
             <input
-              placeholder="아이템명"
+              placeholder="자산명"
               value={draftFilters.keyword}
               onChange={(event) =>
                 setDraftFilters((current) => ({ ...current, keyword: event.target.value }))
@@ -179,7 +179,7 @@ function ItemCodesContent() {
 
         <form className="filter-bar" onSubmit={(event) => void handleSubmit(event)}>
           <label>
-            아이템명
+            자산명
             <input
               required
               maxLength={120}
@@ -214,7 +214,7 @@ function ItemCodesContent() {
 
         {error ? <p className="form-error">{error}</p> : null}
         {!data ? (
-          <p>아이템 코드를 불러오는 중입니다.</p>
+          <p>자산 코드를 불러오는 중입니다.</p>
         ) : (
           <>
             <div className="table-wrap">
@@ -223,7 +223,7 @@ function ItemCodesContent() {
                   <tr>
                     <th>ID</th>
                     <th>코드</th>
-                    <th>아이템명</th>
+                    <th>자산명</th>
                     <th>상태</th>
                     <th>메모</th>
                     <th>수정일</th>

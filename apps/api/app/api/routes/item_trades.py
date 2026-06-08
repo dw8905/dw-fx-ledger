@@ -83,7 +83,7 @@ def cancel_item_trade_route(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
     if trade is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item trade not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset trade not found")
 
     db.commit()
     return trade

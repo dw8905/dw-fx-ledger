@@ -107,10 +107,10 @@ fx_lot_events,related_event_id,bigint,true,false,fx_lot_events.lot_event_id,fals
 fx_lot_events,event_payload,jsonb,true,false,,false,false,,이벤트 부가 데이터
 fx_lot_events,created_at,timestamptz,false,false,,false,true,now(),생성 시각
 fx_lot_events,created_by,bigint,true,false,users.user_id,false,false,,생성자
-item_codes,item_code_id,bigint,false,true,,false,false,autoincrement,아이템 코드 ID
+item_codes,item_code_id,bigint,false,true,,false,false,autoincrement,자산 코드 ID
 item_codes,user_id,bigint,true,false,users.user_id,false,true,,과거 사용자별 코드 호환 컬럼
-item_codes,item_code,varchar(80),false,false,,true,true,,전역 아이템 코드 자동 생성
-item_codes,item_name,varchar(120),false,false,,false,true,,물건명
+item_codes,item_code,varchar(80),false,false,,true,true,,전역 자산 코드 자동 생성
+item_codes,item_name,varchar(120),false,false,,false,true,,자산명
 item_codes,memo,text,true,false,,false,false,,메모
 item_codes,is_active,boolean,false,false,,false,true,true,사용 가능 여부
 item_codes,is_deleted,boolean,false,false,,false,false,false,논리 삭제 여부
@@ -118,12 +118,12 @@ item_codes,created_at,timestamptz,false,false,,false,false,now(),생성 시각
 item_codes,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
 item_codes,created_by,bigint,true,false,users.user_id,false,false,,생성자
 item_codes,updated_by,bigint,true,false,users.user_id,false,false,,수정자
-item_trades,item_trade_id,bigint,false,true,,false,false,autoincrement,아이템 거래 기록 ID
+item_trades,item_trade_id,bigint,false,true,,false,false,autoincrement,자산 거래 기록 ID
 item_trades,user_id,bigint,false,false,users.user_id,false,true,,기록 소유 사용자
-item_trades,item_code_id,bigint,true,false,item_codes.item_code_id,false,true,,아이템 코드
+item_trades,item_code_id,bigint,true,false,item_codes.item_code_id,false,true,,자산 코드
 item_trades,trade_type,varchar(20),false,false,,false,true,buy,거래 구분
 item_trades,trade_status,varchar(20),false,false,,false,true,active,거래 상태
-item_trades,item_name,varchar(120),false,false,,false,true,,물건명
+item_trades,item_name,varchar(120),false,false,,false,true,,자산명
 item_trades,buy_date,date,false,false,,false,true,,매수일 또는 거래일 호환 저장
 item_trades,buy_unit_price,bigint,false,false,,false,false,,매수 단가 또는 평균단가 호환 저장
 item_trades,quantity,integer,false,false,,false,false,,수량

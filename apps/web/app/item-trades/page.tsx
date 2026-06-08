@@ -23,7 +23,7 @@ type TradeType = "buy" | "sell" | "adjustment";
 const tabs: Array<SectionTabItem<ItemTab>> = [
   { id: "buy", href: "/item-trades?tab=buy", label: "매수" },
   { id: "sell", href: "/item-trades?tab=sell", label: "매도" },
-  { id: "inventory", href: "/item-trades?tab=inventory", label: "아이템별 재고관리" }
+  { id: "inventory", href: "/item-trades?tab=inventory", label: "자산별 재고관리" }
 ];
 
 function parseItemTab(value: string | null): ItemTab {
@@ -116,7 +116,7 @@ function ItemTradeForm({
     event.preventDefault();
     setError("");
     if (!selectedCode) {
-      setError("관리자에 등록된 아이템명을 선택해주세요.");
+      setError("관리자에 등록된 자산명을 선택해주세요.");
       return;
     }
 
@@ -149,7 +149,7 @@ function ItemTradeForm({
     <form className="post-form trade-form" onSubmit={(event) => void handleSubmit(event)}>
       <div className="form-grid">
         <label>
-          아이템명
+          자산명
           <input
             required
             list="item-name-options"
@@ -257,7 +257,7 @@ function TradeTable({
       <table className="post-table">
         <thead>
           <tr>
-            <th>아이템명</th>
+            <th>자산명</th>
             <th>상태</th>
             <th>거래일</th>
             <th>{tradeType === "adjustment" ? "조정단가" : "단가"}</th>
@@ -330,7 +330,7 @@ function InventoryTable({
       <table className="post-table">
         <thead>
           <tr>
-            <th>아이템명</th>
+            <th>자산명</th>
             <th>남은 수량</th>
             <th>재고 원가</th>
             <th>평균단가</th>
@@ -382,7 +382,7 @@ function ItemTradesContent() {
     listItemCodes()
       .then((response) => setCodes(response.items))
       .catch((caughtError) =>
-        setError(caughtError instanceof Error ? caughtError.message : "아이템 목록을 불러오지 못했습니다.")
+        setError(caughtError instanceof Error ? caughtError.message : "자산 목록을 불러오지 못했습니다.")
       );
   }, []);
 
@@ -486,14 +486,14 @@ function ItemTradesContent() {
   return (
     <>
       <div className="section-tabs-frame">
-        <SectionTabs activeId={activeTab} ariaLabel="아이템 기능" items={tabs} />
+        <SectionTabs activeId={activeTab} ariaLabel="자산관리 기능" items={tabs} />
       </div>
 
       <main className="content-page trade-page">
         <section className="content-header">
           <div>
-            <p className="eyebrow">Item Trade</p>
-            <h1>아이템</h1>
+            <p className="eyebrow">Asset Management</p>
+            <h1>자산관리</h1>
           </div>
         </section>
 
@@ -524,7 +524,7 @@ function ItemTradesContent() {
         ) : null}
         {activeTab === "inventory" ? (
           <>
-            <h2 className="section-title">아이템별 재고관리</h2>
+            <h2 className="section-title">자산별 재고관리</h2>
             <InventoryTable summaries={data?.summaries ?? []} onAdjusted={(summary) => void handleInventoryAdjust(summary)} />
             <h2 className="section-title">재고 조정 기록</h2>
             <TradeTable items={adjustmentItems} tradeType="adjustment" onCancelled={refreshAfterSave} />
@@ -551,7 +551,7 @@ function ItemTradesContent() {
 export default function ItemTradesPage() {
   return (
     <AuthGuard>
-      <Suspense fallback={<main className="content-page trade-page">아이템 화면을 불러오는 중입니다.</main>}>
+      <Suspense fallback={<main className="content-page trade-page">자산관리 화면을 불러오는 중입니다.</main>}>
         <ItemTradesContent />
       </Suspense>
     </AuthGuard>

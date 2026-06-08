@@ -9,7 +9,7 @@ function currentItemLabel(tab: string | null) {
     return "매도";
   }
   if (tab === "inventory") {
-    return "아이템별 재고관리";
+    return "자산별 재고관리";
   }
   return "매수";
 }
@@ -31,7 +31,7 @@ function currentSection(pathname: string, itemTab: string | null) {
     return { group: "FX", label: "매수" };
   }
   if (pathname.startsWith("/item-trades")) {
-    return { group: "아이템", label: currentItemLabel(itemTab) };
+    return { group: "자산관리", label: currentItemLabel(itemTab) };
   }
   if (pathname.startsWith("/posts")) {
     return { group: "게시판", label: null };
@@ -54,7 +54,7 @@ export function Header() {
         {section ? (
           <>
             <span aria-hidden="true">&gt;</span>
-            <Link href={section.group === "FX" ? "/fx" : section.group === "아이템" ? "/item-trades" : "/posts"}>
+            <Link href={section.group === "FX" ? "/fx" : section.group === "자산관리" ? "/item-trades" : "/posts"}>
               {section.group}
             </Link>
             {section.label ? (
@@ -69,7 +69,7 @@ export function Header() {
       <nav className="header-nav" aria-label="사용자 메뉴">
         <Link href="/posts">게시판</Link>
         <Link href="/fx">FX</Link>
-        <Link href="/item-trades">아이템</Link>
+        <Link href="/item-trades">자산관리</Link>
         {status === "authenticated" ? (
           <>
             <span className="user-name">{user?.displayName}</span>

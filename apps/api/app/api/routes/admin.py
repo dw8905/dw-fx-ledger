@@ -183,7 +183,7 @@ def update_item_code_route(
 ) -> AdminItemCodeRead:
     code = get_admin_item_code(db, item_code_id=item_code_id)
     if code is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item code not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset code not found")
 
     try:
         updated = update_admin_item_code(
@@ -209,7 +209,7 @@ def deactivate_item_code_route(
 ) -> AdminItemCodeRead:
     code = get_admin_item_code(db, item_code_id=item_code_id)
     if code is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item code not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset code not found")
 
     deactivated = deactivate_admin_item_code(db, admin_user=admin_user, code=code)
     db.commit()
