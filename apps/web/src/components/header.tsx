@@ -24,6 +24,9 @@ function currentSection(pathname: string, itemTab: string | null) {
   if (pathname.startsWith("/fx/ledger")) {
     return { group: "FX", label: "원장" };
   }
+  if (pathname.startsWith("/fx/stats")) {
+    return { group: "FX", label: "통계" };
+  }
   if (pathname.startsWith("/fx/dev-lab")) {
     return { group: "FX", label: "Lab" };
   }

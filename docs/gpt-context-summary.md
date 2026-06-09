@@ -22,6 +22,8 @@
 
 - 상단 메뉴는 `게시판`, `FX`, `자산관리` 중심입니다.
 - FX 하위 화면은 `/fx/layout.tsx`에서 공통 탭을 렌더링합니다.
+- FX 통계 화면은 `/fx/stats`이며 Recharts 기반으로 누적수익 추이, 월별 실현손익, Open 로트 환율 분포를 보여줍니다.
+- FX 원장 화면은 `/fx/ledger`이며 현재 표시된 그리드를 CSV로 추출할 수 있습니다.
 - 자산관리 하위 탭은 `SectionTabs` 공통 컴포넌트를 사용합니다.
 - 브레드크럼은 `DW FX Ledger > FX > 매수`, `DW FX Ledger > 자산관리 > 매도`처럼 현재 섹션과 탭을 표시합니다.
 
@@ -53,6 +55,7 @@ pnpm --filter @dw-fx-ledger/admin build
 
 - `pnpm start`, `pnpm stop`, `pnpm status`, `pnpm restart`는 API/Web/Admin을 통합 관리합니다.
 - Next build 후에는 dev 서버의 `.next` 캐시 혼선을 막기 위해 `pnpm restart`로 다시 띄우는 편이 안전합니다.
+- Recharts 사용으로 `/fx/stats` 번들이 커졌으므로, 더 최적화가 필요하면 stats 차트 영역을 dynamic import로 분리합니다.
 - 테스트가 dev DB를 오염시키지 않도록 자산 코드 테스트 데이터 cleanup을 유지해야 합니다.
 
 ## 현재 알려진 정리 필요 항목

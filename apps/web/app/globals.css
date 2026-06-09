@@ -828,6 +828,90 @@ p {
   font-weight: 800;
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.chart-card {
+  display: grid;
+  gap: 14px;
+  min-height: 320px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #dce4dd;
+  border-radius: 6px;
+}
+
+.chart-card.wide {
+  grid-row: span 2;
+}
+
+.chart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chart-heading h2 {
+  margin: 0;
+  color: #20352a;
+  font-size: 20px;
+}
+
+.chart-heading span {
+  display: block;
+  margin-top: 4px;
+  color: #52705e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chart-heading strong {
+  color: #1f7a3b;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.chart-canvas {
+  min-height: 300px;
+}
+
+.chart-canvas.compact {
+  min-height: 260px;
+}
+
+.chart-tooltip {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #c7d3ca;
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgba(23, 32, 27, 0.12);
+}
+
+.chart-tooltip span {
+  color: #52705e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chart-tooltip strong {
+  color: #17201b;
+  font-size: 14px;
+}
+
+.empty-chart {
+  align-self: center;
+  justify-self: center;
+  color: #52705e;
+  font-size: 14px;
+}
+
 @media (max-width: 560px) {
   .app-header {
     align-items: flex-start;
@@ -870,4 +954,13 @@ p {
   .trade-summary {
     position: static;
   }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card.wide {
+    grid-row: auto;
+  }
+
 }

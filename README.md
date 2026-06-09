@@ -10,6 +10,7 @@ Frontend
 
 - Next.js
 - TypeScript
+- Recharts
 - pnpm workspace
 
 Backend
@@ -98,11 +99,19 @@ FX 매도
 - 엑셀형 검산 화면
 - open 매수 로트와 sold allocation row를 합쳐 조회합니다.
 - 누적수익과 환율차이평균은 전체 원장 고정 정렬 기준으로 계산합니다.
+- 현재 표시된 원장 그리드를 CSV로 추출할 수 있습니다.
 
 Dev Lab
 
 - `/fx/dev-lab`
 - 최근 매도 거래와 로트 이벤트를 확인하는 개발/검증용 화면입니다.
+
+FX 통계
+
+- `/fx/stats`
+- 원장 데이터를 기반으로 누적수익 추이, 월별 실현손익, Open 로트 환율 분포를 조회합니다.
+- 차트는 Recharts 기반으로 렌더링합니다.
+- 별도 통계 API 없이 기존 원장 API 응답을 프론트에서 집계합니다.
 
 Admin
 
@@ -459,7 +468,8 @@ Web:
 - `/fx/buy-lots/new`: 매수 등록
 - `/fx/sell-transactions`: FX 매도 탭, 매도 거래 목록
 - `/fx/sell-transactions/new`: 매도 등록
-- `/fx/ledger`: FX 원장 탭, 엑셀형 원장 조회
+- `/fx/ledger`: FX 원장 탭, 엑셀형 원장 조회와 CSV 추출
+- `/fx/stats`: FX 통계 탭, Recharts 기반 원장 통계 차트
 - `/fx/dev-lab`: FX Lab 탭, 개발/검증용 FX 이벤트 확인
 - `/item-trades?tab=buy`: 자산 매수 탭
 - `/item-trades?tab=sell`: 자산 매도 탭
@@ -485,13 +495,14 @@ Admin:
 - Admin은 현재 조회와 자산 코드 마스터 관리 중심입니다.
 - Admin에서 FX 장부 자체를 수정/삭제하는 기능은 없습니다.
 - 기존 중복 자산 코드 중 거래가 연결된 항목은 병합 기준을 정해 별도 정리해야 합니다.
+- Recharts 사용으로 `/fx/stats` 화면의 클라이언트 번들이 다른 FX 화면보다 큽니다.
 
 ## 향후 예정
 
 - Admin 고도화
 - 리포트 화면
 - Excel Export
-- 고급 통계
+- 통계 차트 고도화
 - root lot timeline
 - 원장 필터/검색 고도화
 - 매수/매도 데이터 import 도구 정식화
