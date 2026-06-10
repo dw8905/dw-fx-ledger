@@ -19,6 +19,8 @@ from app.db.base import (
 
 
 class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
+    """한 번의 USD 매도 거래와 그 거래의 전체 손익 합계를 저장합니다."""
+
     __tablename__ = "fx_sell_transactions"
 
     sell_transaction_id: Mapped[int] = mapped_column(
@@ -49,6 +51,8 @@ class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
 
 
 class FxBuyLot(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
+    """매수로 생긴 USD 보유 묶음이며, 매도 시 닫힌/잔여 로트로 분리됩니다."""
+
     __tablename__ = "fx_buy_lots"
 
     buy_lot_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -86,6 +90,8 @@ class FxBuyLot(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
 
 
 class FxLotAllocation(Base):
+    """매도 거래가 어떤 매수 로트를 얼마만큼 차감했는지 기록하는 연결 테이블입니다."""
+
     __tablename__ = "fx_lot_allocations"
 
     lot_allocation_id: Mapped[int] = mapped_column(
@@ -125,6 +131,8 @@ class FxLotAllocation(Base):
 
 
 class FxLotEvent(Base):
+    """로트 생성, 매도 차감, 취소 복원 같은 FX 장부 이벤트를 감사 로그로 저장합니다."""
+
     __tablename__ = "fx_lot_events"
 
     lot_event_id: Mapped[int] = mapped_column(

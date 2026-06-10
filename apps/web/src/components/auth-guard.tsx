@@ -5,6 +5,8 @@ import { useEffect, type ReactNode } from "react";
 import { useAuth } from "../context/auth-context";
 
 export function AuthGuard({ children }: { children: ReactNode }) {
+  /** 인증이 필요한 화면에서 anonymous 상태면 로그인 페이지로 보내는 클라이언트 가드입니다. */
+
   const router = useRouter();
   const { status } = useAuth();
 

@@ -38,6 +38,8 @@ def register(
     response: Response,
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthResponse:
+    """중복 계정을 막고 새 사용자 생성 후 인증 쿠키까지 발급합니다."""
+
     existing_user = db.scalar(
         select(User).where(
             or_(
@@ -71,6 +73,8 @@ def login(
     response: Response,
     db: Annotated[Session, Depends(get_db)],
 ) -> AuthResponse:
+    """이메일/login_id와 비밀번호를 검증하고 성공하면 새 토큰 쿠키를 내려줍니다."""
+
     user = get_user_by_identifier(db, payload.identifier)
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
@@ -96,6 +100,8 @@ def refresh(
         str | None, Cookie(alias=settings.refresh_token_cookie_name)
     ] = None,
 ) -> MessageResponse:
+    """유효한 refresh token을 1회 소비하고 새 토큰 쿠키로 교체합니다."""
+
     refresh_token_value = payload.refresh_token if payload and payload.refresh_token else refresh_cookie
     if refresh_token_value is None:
         raise HTTPException(
@@ -125,6 +131,8 @@ def logout(
         str | None, Cookie(alias=settings.refresh_token_cookie_name)
     ] = None,
 ) -> MessageResponse:
+    """refresh token을 폐기하고 브라우저 인증 쿠키를 삭제합니다."""
+
     refresh_token_value = payload.refresh_token if payload and payload.refresh_token else refresh_cookie
     if refresh_token_value is not None:
         revoke_refresh_token(db, refresh_token_value)
@@ -135,4 +143,6 @@ def logout(
 
 @router.get("/me", response_model=UserRead)
 def me(current_user: Annotated[User, Depends(get_current_user)]) -> UserRead:
+    """현재 access token이 가리키는 로그인 사용자 정보를 반환합니다."""
+
     return to_user_read(current_user)

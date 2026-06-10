@@ -8,6 +8,7 @@ import { listLotEvents, type AdminLotEvent, type Paginated } from "../../../../s
 import { formatDateTime } from "../../../../src/lib/format";
 
 type EventFilters = {
+  /** FX 이벤트 로그 화면에서 지원하는 user/event/transaction/lot 필터입니다. */
   userId: string;
   eventType: string;
   sellTransactionId: string;
@@ -29,6 +30,8 @@ const eventTypes = [
 ];
 
 function EventsContent() {
+  /** FX 이벤트 로그의 검색 필터, 페이지네이션, 조회 결과를 관리합니다. */
+
   const [draftFilters, setDraftFilters] = useState<EventFilters>(emptyFilters);
   const [filters, setFilters] = useState<EventFilters>(emptyFilters);
   const [page, setPage] = useState(1);
@@ -53,12 +56,16 @@ function EventsContent() {
   }, [filters, page, size]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 이벤트 로그 필터 입력값을 실제 조회 조건으로 확정합니다. */
+
     event.preventDefault();
     setPage(1);
     setFilters(draftFilters);
   }
 
   function resetFilters() {
+    /** 이벤트 로그 필터를 비우고 첫 페이지를 다시 조회합니다. */
+
     setDraftFilters(emptyFilters);
     setFilters(emptyFilters);
     setPage(1);
@@ -181,6 +188,8 @@ function EventsContent() {
 }
 
 export default function EventsPage() {
+  /** 관리자 FX 이벤트 로그 화면 전체를 admin 권한 가드로 보호합니다. */
+
   return (
     <AdminGuard>
       <EventsContent />

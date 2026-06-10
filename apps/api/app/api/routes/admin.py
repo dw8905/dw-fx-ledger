@@ -38,6 +38,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/health")
 def admin_health(current_user: Annotated[User, Depends(require_admin)]) -> dict[str, int | str]:
+    """admin role 인증이 정상 동작하는지 확인하는 관리자 헬스체크입니다."""
+
     return {"status": "ok", "userId": current_user.user_id}
 
 
@@ -51,6 +53,8 @@ def list_users_route(
     user_status: str | None = None,
     role: str | None = None,
 ) -> AdminUserListResponse:
+    """관리자 사용자 목록 화면의 검색/필터/페이지 요청을 처리합니다."""
+
     return list_admin_users(
         db,
         page=page,
@@ -67,6 +71,8 @@ def get_user_route(
     db: Annotated[Session, Depends(get_db)],
     _admin_user: Annotated[User, Depends(require_admin)],
 ) -> AdminUserDetail:
+    """관리자 사용자 상세 화면에 계정 정보와 FX 요약을 반환합니다."""
+
     user = get_admin_user_detail(db, user_id=user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -84,6 +90,8 @@ def list_posts_route(
     post_status: str | None = None,
     keyword: str | None = None,
 ) -> AdminPostListResponse:
+    """관리자 게시글 목록 화면의 삭제글 포함/상태/검색 필터를 처리합니다."""
+
     return list_admin_posts(
         db,
         page=page,
@@ -101,6 +109,8 @@ def get_user_ledger_route(
     _admin_user: Annotated[User, Depends(require_admin)],
     period: str = "all",
 ) -> AdminUserLedgerResponse:
+    """관리자가 특정 사용자의 FX 원장을 read-only로 조회할 때 사용합니다."""
+
     user = get_admin_user(db, user_id=user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -124,6 +134,8 @@ def list_lot_events_route(
     sell_transaction_id: int | None = None,
     root_buy_lot_id: int | None = None,
 ) -> AdminLotEventListResponse:
+    """관리자 FX 이벤트 로그 화면의 사용자/이벤트/거래/로트 필터를 처리합니다."""
+
     return list_admin_lot_events(
         db,
         page=page,
@@ -144,6 +156,8 @@ def list_item_codes_route(
     keyword: str | None = None,
     is_active: bool | None = None,
 ) -> AdminItemCodeListResponse:
+    """관리자 자산 마스터 목록의 검색/활성 필터와 페이지 요청을 처리합니다."""
+
     return list_admin_item_codes(
         db,
         page=page,
@@ -159,6 +173,8 @@ def create_item_code_route(
     db: Annotated[Session, Depends(get_db)],
     admin_user: Annotated[User, Depends(require_admin)],
 ) -> AdminItemCodeRead:
+    """관리자가 자산명을 등록하면 내부 자산 코드를 자동 생성합니다."""
+
     try:
         code = create_admin_item_code(
             db,
@@ -181,6 +197,8 @@ def update_item_code_route(
     db: Annotated[Session, Depends(get_db)],
     admin_user: Annotated[User, Depends(require_admin)],
 ) -> AdminItemCodeRead:
+    """관리자가 기존 자산 마스터의 이름/메모/활성 상태를 수정합니다."""
+
     code = get_admin_item_code(db, item_code_id=item_code_id)
     if code is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset code not found")
@@ -207,6 +225,8 @@ def deactivate_item_code_route(
     db: Annotated[Session, Depends(get_db)],
     admin_user: Annotated[User, Depends(require_admin)],
 ) -> AdminItemCodeRead:
+    """관리자가 자산 마스터를 삭제 대신 비활성 상태로 전환합니다."""
+
     code = get_admin_item_code(db, item_code_id=item_code_id)
     if code is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset code not found")

@@ -14,6 +14,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  /** 전체 웹 앱을 AuthProvider와 공통 Header로 감싸는 최상위 레이아웃입니다. */
+
   return (
     <html lang="ko">
       <body>

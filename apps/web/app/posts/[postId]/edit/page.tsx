@@ -8,6 +8,8 @@ import { useAuth } from "../../../../src/context/auth-context";
 import { getPost, updatePost, type PostDetail } from "../../../../src/lib/posts-api";
 
 function EditPostContent() {
+  /** 수정 대상 게시글을 불러온 뒤 작성자/admin 권한을 확인합니다. */
+
   const params = useParams<{ postId: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -64,6 +66,8 @@ function EditPostContent() {
 }
 
 export default function EditPostPage() {
+  /** 게시글 수정 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <EditPostContent />

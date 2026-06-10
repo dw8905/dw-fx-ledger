@@ -5,6 +5,8 @@ from app.db.base import AuditUserMixin, Base, Integer, SoftDeleteMixin, String, 
 
 
 class BoardPost(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
+    """게시판 글 본문, 작성자, 조회수, 게시 상태를 저장하는 모델입니다."""
+
     __tablename__ = "board_posts"
 
     post_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

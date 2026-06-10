@@ -20,23 +20,33 @@ const periodOptions = [
 ];
 
 function formatNullableDate(value: string | null) {
+  /** 매도일이 없는 open 로트는 빈 칸으로, 값이 있으면 YYMMDD로 표시합니다. */
+
   return value ? formatCompactDate(value) : "";
 }
 
 function formatNullableKrwRate(value: string | null) {
+  /** 환율이 없는 open 로트 계산 칸은 빈 문자열로 표시합니다. */
+
   return value ? formatKrwRate(value) : "";
 }
 
 function formatNullableKrw(value: number | null) {
+  /** 원화 금액이 없는 open 로트 계산 칸은 빈 문자열로 표시합니다. */
+
   return value === null ? "" : formatKrwCurrency(value);
 }
 
 function escapeCsvCell(value: string | number | null) {
+  /** 쉼표/따옴표가 들어간 값도 CSV 셀 하나로 유지되도록 이스케이프합니다. */
+
   const text = value === null ? "" : String(value);
   return `"${text.replaceAll("\"", "\"\"")}"`;
 }
 
 function buildLedgerCsv(data: LedgerResponse) {
+  /** 현재 화면에 표시된 FX 원장 행을 같은 컬럼 순서의 CSV 문자열로 변환합니다. */
+
   const headers = [
     "매수일",
     "매수원화환전금액",
@@ -66,6 +76,8 @@ function buildLedgerCsv(data: LedgerResponse) {
 }
 
 function downloadCsv(filename: string, csv: string) {
+  /** 브라우저에서 UTF-8 BOM이 포함된 CSV 파일 다운로드를 트리거합니다. */
+
   const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -78,6 +90,8 @@ function downloadCsv(filename: string, csv: string) {
 }
 
 function getCsvFilename(period: string) {
+  /** 기간과 한국시간 타임스탬프를 포함한 CSV 파일명을 만듭니다. */
+
   const timestamp = new Intl.DateTimeFormat("sv-SE", {
     day: "2-digit",
     hour: "2-digit",
@@ -94,6 +108,8 @@ function getCsvFilename(period: string) {
 }
 
 function LedgerContent() {
+  /** FX 원장 기간 필터, 요약 카드, 그리드, CSV 다운로드 상태를 관리합니다. */
+
   const [period, setPeriod] = useState("all");
   const [data, setData] = useState<LedgerResponse | null>(null);
   const [error, setError] = useState("");
@@ -108,6 +124,8 @@ function LedgerContent() {
   }, [period]);
 
   function handleCsvDownload() {
+    /** 원장 데이터가 있을 때만 CSV 문자열을 만들고 다운로드합니다. */
+
     if (!data || data.items.length === 0) {
       return;
     }
@@ -225,6 +243,8 @@ function LedgerContent() {
 }
 
 export default function LedgerPage() {
+  /** FX 원장 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <LedgerContent />

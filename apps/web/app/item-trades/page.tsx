@@ -17,7 +17,9 @@ import {
   type ItemTradeListResponse
 } from "../../src/lib/item-trades-api";
 
+/** 자산관리 화면에서 URL 쿼리로 선택되는 상위 탭입니다. */
 type ItemTab = "buy" | "sell" | "inventory";
+/** 서버 거래 타입과 맞춰 쓰는 매수/매도/재고조정 구분값입니다. */
 type TradeType = "buy" | "sell" | "adjustment";
 
 const tabs: Array<SectionTabItem<ItemTab>> = [
@@ -27,6 +29,8 @@ const tabs: Array<SectionTabItem<ItemTab>> = [
 ];
 
 function parseItemTab(value: string | null): ItemTab {
+  /** URL tab 쿼리값을 허용된 자산관리 탭 값으로 정규화합니다. */
+
   if (value === "sell" || value === "inventory") {
     return value;
   }
@@ -34,6 +38,8 @@ function parseItemTab(value: string | null): ItemTab {
 }
 
 function today() {
+  /** 한국 날짜 기준으로 input[type=date]에 넣을 오늘 YYYY-MM-DD 값을 만듭니다. */
+
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
     month: "2-digit",
@@ -45,11 +51,15 @@ function today() {
 }
 
 function toNumber(value: string) {
+  /** 숫자 입력 문자열을 안전하게 number로 바꾸고 비정상 값은 0으로 처리합니다. */
+
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function calculateMinimumProfitableUnitPrice(unitPrice: number, feePercent: number) {
+  /** 판매 수수료율을 감안해 평균단가 이상이 남는 최소 판매가를 계산합니다. */
+
   const netRate = 1 - feePercent / 100;
   if (unitPrice <= 0 || netRate <= 0) {
     return 0;
@@ -58,12 +68,16 @@ function calculateMinimumProfitableUnitPrice(unitPrice: number, feePercent: numb
 }
 
 function formatFeeRate(value: string) {
+  /** 서버가 0.05 형태로 내려준 수수료율을 5%처럼 표시합니다. */
+
   return `${(Number(value) * 100).toLocaleString("ko-KR", {
     maximumFractionDigits: 2
   })}%`;
 }
 
 function findCodeByName(codes: ItemCode[], itemName: string) {
+  /** 사용자가 입력한 자산명과 동일한 활성 자산 마스터를 찾습니다. */
+
   return codes.find((code) => code.itemName === itemName.trim()) ?? null;
 }
 
@@ -78,6 +92,8 @@ function ItemTradeForm({
   summaries: ItemCodeSummary[];
   tradeType: TradeType;
 }) {
+  /** 매수/매도/조정 타입별 공통 입력 폼과 예상 손익 프리뷰를 렌더링합니다. */
+
   const [itemName, setItemName] = useState("");
   const [tradeDate, setTradeDate] = useState(today);
   const [unitPrice, setUnitPrice] = useState("0");
@@ -114,12 +130,16 @@ function ItemTradeForm({
       : calculateMinimumProfitableUnitPrice(selectedSummary?.averageBuyUnitPrice ?? 0, feePercentNumber);
 
   function handleUseMaxQuantity() {
+    /** 매도 탭에서 현재 보유 수량을 수량 입력값으로 한 번에 채웁니다. */
+
     if (maxSellQuantity > 0) {
       setQuantity(String(maxSellQuantity));
     }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 자산 마스터 선택 여부를 확인한 뒤 거래 등록 API를 호출합니다. */
+
     event.preventDefault();
     setError("");
     if (!selectedCode) {
@@ -261,7 +281,11 @@ function TradeTable({
   onCancelled: () => Promise<void>;
   tradeType: TradeType;
 }) {
+  /** 매수/매도/조정 거래 목록을 공통 테이블로 보여주고 취소 액션을 제공합니다. */
+
   async function handleCancel(trade: ItemTrade) {
+    /** 취소 사유를 입력받아 해당 거래를 취소하고 목록을 새로고침합니다. */
+
     const tradeLabel = tradeType === "buy" ? "매수" : tradeType === "sell" ? "매도" : "조정";
     const reason = window.prompt(`${trade.itemName} ${tradeLabel} 기록을 취소할까요? 취소 사유를 입력할 수 있습니다.`);
     if (reason === null) {
@@ -345,6 +369,8 @@ function InventoryTable({
   onAdjusted: (summary: ItemCodeSummary) => void;
   summaries: ItemCodeSummary[];
 }) {
+  /** 자산별 현재 재고, 평균단가, 최소판매가, 총 수익과 조정 버튼을 보여줍니다. */
+
   return (
     <div className="table-wrap">
       <table className="post-table">
@@ -390,6 +416,8 @@ function InventoryTable({
 }
 
 function ItemTradesContent() {
+  /** 자산관리 탭 상태, 거래 목록, 자산 마스터 목록, 재고 조정 흐름을 관리합니다. */
+
   const searchParams = useSearchParams();
   const activeTab = parseItemTab(searchParams.get("tab"));
   const [codes, setCodes] = useState<ItemCode[]>([]);
@@ -399,6 +427,8 @@ function ItemTradesContent() {
   const [error, setError] = useState("");
 
   const loadCodes = useCallback(() => {
+    /** 관리자에서 등록한 활성 자산 마스터를 자동완성 목록으로 불러옵니다. */
+
     listItemCodes()
       .then((response) => setCodes(response.items))
       .catch((caughtError) =>
@@ -407,6 +437,8 @@ function ItemTradesContent() {
   }, []);
 
   const loadTrades = useCallback(() => {
+    /** 현재 페이지/크기에 맞춰 사용자 자산 거래와 재고 요약을 불러옵니다. */
+
     listItemTrades(page, size)
       .then(setData)
       .catch((caughtError) =>
@@ -440,11 +472,15 @@ function ItemTradesContent() {
   );
 
   async function refreshAfterSave() {
+    /** 거래 저장/취소 후 첫 페이지 기준으로 코드 목록과 거래 목록을 다시 동기화합니다. */
+
     setPage(1);
     await Promise.all([loadCodes(), listItemTrades(1, size).then(setData)]);
   }
 
   async function handleInventoryAdjust(summary: ItemCodeSummary) {
+    /** 실제 보유 수량을 입력받아 차이만큼 adjustment 거래를 새로 기록합니다. */
+
     const actualQuantityText = window.prompt(
       `${summary.itemName} 실제 보유 수량을 입력해주세요.`,
       String(summary.inventoryQuantity)
@@ -569,6 +605,8 @@ function ItemTradesContent() {
 }
 
 export default function ItemTradesPage() {
+  /** 자산관리 화면 전체를 인증 가드와 Suspense 경계로 감쌉니다. */
+
   return (
     <AuthGuard>
       <Suspense fallback={<main className="content-page trade-page">자산관리 화면을 불러오는 중입니다.</main>}>

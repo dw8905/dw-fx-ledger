@@ -13,6 +13,8 @@ import {
 } from "../../../src/lib/fx-api";
 
 function DevLabContent() {
+  /** 개발/검증용으로 최근 매도 거래와 로트 이벤트를 각각 페이지네이션해 보여줍니다. */
+
   const [transactions, setTransactions] = useState<SellTransactionListResponse | null>(null);
   const [events, setEvents] = useState<LotEventListResponse | null>(null);
   const [transactionPage, setTransactionPage] = useState(1);
@@ -166,6 +168,8 @@ function DevLabContent() {
 }
 
 export default function FxDevLabPage() {
+  /** FX Dev Lab 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <DevLabContent />

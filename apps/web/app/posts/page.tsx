@@ -7,6 +7,8 @@ import { formatDateTime } from "../../src/lib/format";
 import { listPosts, type PostListResponse } from "../../src/lib/posts-api";
 
 export default function PostsPage() {
+  /** 게시글 목록, 검색어, 페이지 크기/번호 상태를 관리하는 게시판 화면입니다. */
+
   const [data, setData] = useState<PostListResponse | null>(null);
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
@@ -24,12 +26,16 @@ export default function PostsPage() {
   }, [keyword, page, size]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
+    /** 검색 버튼을 누르면 입력값을 확정하고 첫 페이지부터 다시 조회합니다. */
+
     event.preventDefault();
     setPage(1);
     setKeyword(keywordInput.trim());
   }
 
   function resetSearch() {
+    /** 검색어를 비우고 첫 페이지의 전체 게시글 목록으로 되돌립니다. */
+
     setKeywordInput("");
     setKeyword("");
     setPage(1);

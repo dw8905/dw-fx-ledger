@@ -12,12 +12,16 @@ import {
 } from "../../../src/lib/fx-api";
 
 function SellTransactionsContent() {
+  /** 매도 거래 목록의 정렬 상태를 관리하고 거래 요약을 표시합니다. */
+
   const [data, setData] = useState<SellTransactionListResponse | null>(null);
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
 
   function handleSort(field: string) {
+    /** 같은 헤더를 반복 클릭하면 asc, desc, 정렬 해제 순서로 전환합니다. */
+
     if (sortBy !== field) {
       setSortBy(field);
       setSortOrder("asc");
@@ -118,6 +122,8 @@ function SellTransactionsContent() {
 }
 
 export default function SellTransactionsPage() {
+  /** 매도 거래 목록 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <SellTransactionsContent />

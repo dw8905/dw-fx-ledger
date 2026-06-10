@@ -34,11 +34,15 @@ def list_post_route(
     size: Annotated[int, Query(ge=1, le=100)] = 10,
     keyword: str | None = None,
 ) -> PostListResponse:
+    """게시글 목록을 검색어와 페이지 조건에 맞춰 반환합니다."""
+
     return list_posts(db, page=page, size=size, keyword=keyword)
 
 
 @router.get("/{post_id}", response_model=PostDetailResponse)
 def get_post_route(post_id: int, db: Annotated[Session, Depends(get_db)]) -> PostDetailResponse:
+    """게시글 상세를 조회하고 조회수 증가 결과를 commit합니다."""
+
     post = get_post_detail(db, post_id)
     if post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
@@ -53,6 +57,8 @@ def create_post_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> PostMutationResponse:
+    """로그인 사용자가 작성한 새 게시글을 생성합니다."""
+
     post = create_post(db, title=payload.title, content=payload.content, author=current_user)
     db.commit()
     return post
@@ -65,6 +71,8 @@ def update_post_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> PostMutationResponse:
+    """게시글 존재 여부와 수정 권한을 확인한 뒤 제목/본문을 수정합니다."""
+
     post = get_post_for_mutation(db, post_id)
     if post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
@@ -89,6 +97,8 @@ def delete_post_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> PostDeleteResponse:
+    """게시글 존재 여부와 삭제 권한을 확인한 뒤 소프트 삭제합니다."""
+
     post = get_post_for_mutation(db, post_id)
     if post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")

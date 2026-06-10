@@ -13,6 +13,8 @@ import {
 } from "../../../../src/lib/fx-api";
 
 function NewSellTransactionContent() {
+  /** 매도 등록 폼과 수동 allocation 선택 상태를 함께 관리합니다. */
+
   const router = useRouter();
   const [sellDate, setSellDate] = useState("");
   const [sellUsdAmount, setSellUsdAmount] = useState("");
@@ -48,6 +50,8 @@ function NewSellTransactionContent() {
   }, [allocationStrategy, buyLots.length]);
 
   function toggleManualLot(lot: BuyLot, checked: boolean) {
+    /** 수동 차감 로트를 선택/해제하고 선택 시 남은 필요 USD만큼 기본값을 채웁니다. */
+
     setManualAmounts((current) => {
       const next = { ...current };
       if (!checked) {
@@ -67,6 +71,8 @@ function NewSellTransactionContent() {
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 수동 차감 합계 검증 후 매도 거래 생성 API를 호출합니다. */
+
     event.preventDefault();
     setError("");
 
@@ -220,6 +226,8 @@ function NewSellTransactionContent() {
 }
 
 export default function NewSellTransactionPage() {
+  /** FX 매도 등록 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <NewSellTransactionContent />

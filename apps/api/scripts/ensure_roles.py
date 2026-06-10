@@ -8,6 +8,8 @@ from app.services.roles import ensure_base_roles
 
 
 def main() -> None:
+    """user/admin 기본 role을 DB에 중복 없이 보장합니다."""
+
     with SessionLocal() as db:
         roles = ensure_base_roles(db)
         role_codes = ", ".join(role.role_code for role in roles)

@@ -24,29 +24,41 @@ DEFAULT_ITEM_SELL_FEE_RATE = Decimal("0.050000")
 
 
 def quantize_fee_rate(value: Decimal) -> Decimal:
+    """수수료율을 DB 스케일과 같은 6자리 소수로 고정합니다."""
+
     return value.quantize(FEE_SCALE)
 
 
 def ceil_divide(numerator: int | Decimal, denominator: int | Decimal) -> int:
+    """금액/단가 계산에서 손해가 나지 않도록 나눗셈 결과를 올림 정수로 만듭니다."""
+
     return int((Decimal(numerator) / Decimal(denominator)).to_integral_value(rounding=ROUND_CEILING))
 
 
 def calculate_minimum_profitable_unit_price(buy_unit_price: int, fee_rate: Decimal) -> int:
+    """판매 수수료를 차감해도 매입 단가 이상이 남는 최소 판매 단가를 계산합니다."""
+
     net_rate = Decimal("1") - fee_rate
     return int((Decimal(buy_unit_price) / net_rate).to_integral_value(rounding=ROUND_CEILING))
 
 
 def calculate_fee_amount(total_sell_amount: int, fee_rate: Decimal) -> int:
+    """매도 총액에 수수료율을 곱해 실제 차감될 수수료를 올림 계산합니다."""
+
     return int((Decimal(total_sell_amount) * fee_rate).to_integral_value(rounding=ROUND_CEILING))
 
 
 def effective_inventory_fee_rate(fee_rate: Decimal | None) -> Decimal:
+    """재고 요약에서 수수료율이 비어 있으면 기본 판매 수수료 5%를 사용합니다."""
+
     if fee_rate is None or fee_rate <= 0:
         return DEFAULT_ITEM_SELL_FEE_RATE
     return fee_rate
 
 
 def normalize_item_code(value: str) -> str:
+    """자산 코드 비교 전에 앞뒤 공백을 제거합니다."""
+
     return value.strip()
 
 
@@ -58,6 +70,8 @@ def create_item_code(
     item_name: str,
     memo: str | None = None,
 ) -> ItemCodeRead:
+    """자산 코드를 직접 생성하는 레거시 경로이며 중복 코드 등록을 방지합니다."""
+
     normalized_code = normalize_item_code(item_code)
     existing = get_item_code_by_code(db, item_code=normalized_code, include_inactive=True)
     if existing is not None:
@@ -84,6 +98,8 @@ def ensure_item_code(
     item_code: str,
     item_name: str,
 ) -> ItemCode:
+    """거래 등록 전에 활성 자산 코드가 존재하는지 확인하고 없으면 예외를 냅니다."""
+
     normalized_code = normalize_item_code(item_code)
     existing = get_item_code_by_code(db, item_code=normalized_code)
     if existing is not None:
@@ -98,6 +114,8 @@ def get_item_code_by_code(
     item_code: str,
     include_inactive: bool = False,
 ) -> ItemCode | None:
+    """자산 코드 문자열로 활성 자산 마스터를 찾습니다."""
+
     filters = [ItemCode.item_code == normalize_item_code(item_code), ItemCode.is_deleted.is_(False)]
     if not include_inactive:
         filters.append(ItemCode.is_active.is_(True))
@@ -105,6 +123,8 @@ def get_item_code_by_code(
 
 
 def list_item_codes(db: Session) -> ItemCodeListResponse:
+    """사용자가 거래 입력 자동완성에서 선택할 수 있는 활성 자산 목록을 반환합니다."""
+
     rows = db.scalars(
         select(ItemCode)
         .where(ItemCode.is_deleted.is_(False), ItemCode.is_active.is_(True))
@@ -114,6 +134,8 @@ def list_item_codes(db: Session) -> ItemCodeListResponse:
 
 
 def get_latest_trade_for_code(db: Session, *, current_user: User, item_code_id: int) -> ItemTrade | None:
+    """자산별 현재 재고 수량/원가를 알기 위해 가장 마지막 활성 거래를 조회합니다."""
+
     return db.scalar(
         select(ItemTrade)
         .where(
@@ -140,6 +162,8 @@ def create_item_trade(
     fee_rate: Decimal,
     memo: str | None = None,
 ) -> ItemTradeRead:
+    """거래 타입에 따라 매수/매도/재고조정 빌더를 선택해 새 거래를 저장합니다."""
+
     if trade_type not in {BUY, SELL, ADJUSTMENT}:
         raise ValueError("Invalid trade_type")
     if trade_type in {BUY, SELL} and quantity <= 0:
@@ -210,6 +234,8 @@ def build_buy_trade(
     current_value: int,
     memo: str | None,
 ) -> ItemTrade:
+    """매수 거래를 만들고 평균단가, 보유수량, 최소판매가 스냅샷을 계산합니다."""
+
     total_buy_amount = unit_price * quantity
     inventory_quantity_after = current_quantity + quantity
     inventory_value_after = current_value + total_buy_amount
@@ -257,6 +283,8 @@ def build_sell_trade(
     current_value: int,
     memo: str | None,
 ) -> ItemTrade:
+    """매도 거래를 만들고 평균단가 기준 원가, 수수료, 순매도액, 손익을 계산합니다."""
+
     if current_quantity < quantity:
         raise ValueError("Not enough item inventory")
 
@@ -311,6 +339,8 @@ def build_adjustment_trade(
     current_value: int,
     memo: str | None,
 ) -> ItemTrade:
+    """실제 보유 수량 보정을 거래 이력으로 남기기 위한 재고조정 거래를 만듭니다."""
+
     if quantity_delta == 0:
         raise ValueError("Adjustment quantity must not be zero")
     if current_quantity + quantity_delta < 0:
@@ -369,6 +399,8 @@ def recalculate_item_trades_for_code(
     current_user: User,
     item_code_id: int,
 ) -> None:
+    """취소 이후 같은 자산의 거래 이력을 처음부터 다시 계산해 재고 스냅샷을 맞춥니다."""
+
     trades = db.scalars(
         select(ItemTrade)
         .where(
@@ -455,6 +487,8 @@ def cancel_item_trade(
     item_trade_id: int,
     cancel_reason: str | None,
 ) -> ItemTradeRead | None:
+    """거래를 삭제하지 않고 취소 상태로 바꾼 뒤 재고/손익을 재계산합니다."""
+
     trade = db.scalar(
         select(ItemTrade)
         .where(
@@ -498,6 +532,8 @@ def list_item_trades(
     page: int,
     size: int,
 ) -> ItemTradeListResponse:
+    """현재 사용자의 자산 거래 목록과 자산별 재고 요약을 페이지 단위로 반환합니다."""
+
     filters = [ItemTrade.user_id == current_user.user_id, ItemTrade.is_deleted.is_(False)]
     rows = db.execute(
         select(ItemTrade, ItemCode)
@@ -518,6 +554,8 @@ def list_item_trades(
 
 
 def list_item_code_summaries(db: Session, *, current_user: User) -> list[ItemCodeSummary]:
+    """자산별 마지막 거래 스냅샷과 누적 매도 손익을 모아 재고관리 요약을 만듭니다."""
+
     codes = db.scalars(
         select(ItemCode)
         .join(ItemTrade, ItemTrade.item_code_id == ItemCode.item_code_id)
@@ -570,6 +608,8 @@ def list_item_code_summaries(db: Session, *, current_user: User) -> list[ItemCod
 
 
 def to_item_code_read(code: ItemCode) -> ItemCodeRead:
+    """ItemCode ORM 모델을 사용자 거래 화면용 응답 스키마로 변환합니다."""
+
     return ItemCodeRead(
         itemCodeId=code.item_code_id,
         itemCode=code.item_code,
@@ -581,6 +621,8 @@ def to_item_code_read(code: ItemCode) -> ItemCodeRead:
 
 
 def to_item_trade_read(trade: ItemTrade, code: ItemCode | None = None) -> ItemTradeRead:
+    """ItemTrade ORM 모델을 그리드에서 바로 표시할 수 있는 응답 스키마로 변환합니다."""
+
     trade_date = trade.sell_date if trade.trade_type == SELL and trade.sell_date else trade.buy_date
     unit_price = trade.sell_unit_price if trade.trade_type == SELL and trade.sell_unit_price else trade.buy_unit_price
     return ItemTradeRead(

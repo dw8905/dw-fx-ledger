@@ -6,6 +6,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../../src/context/auth-context";
 
 export default function RegisterPage() {
+  /** 회원가입 폼을 렌더링하고 로그인된 사용자는 홈으로 돌려보냅니다. */
+
   const router = useRouter();
   const { register, status } = useAuth();
   const [email, setEmail] = useState("");
@@ -23,6 +25,8 @@ export default function RegisterPage() {
   }, [router, status]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 비밀번호 확인을 먼저 검증한 뒤 회원가입 API를 호출합니다. */
+
     event.preventDefault();
     setError("");
 

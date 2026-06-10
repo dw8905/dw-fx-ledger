@@ -21,6 +21,8 @@ def get_current_user(
         str | None, Cookie(alias=settings.access_token_cookie_name)
     ] = None,
 ) -> User:
+    """Bearer 헤더 또는 HttpOnly 쿠키에서 access token을 읽어 현재 사용자를 찾습니다."""
+
     token = credentials.credentials if credentials is not None else access_cookie
     user_id = decode_access_token(token) if token is not None else None
     if user_id is None:
@@ -42,6 +44,8 @@ def get_current_user(
 
 
 def require_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    """현재 사용자가 admin role을 갖고 있는지 확인하고 없으면 403을 발생시킵니다."""
+
     if not user_has_role(current_user, ADMIN_ROLE_CODE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
 

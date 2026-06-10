@@ -1,6 +1,7 @@
 import { apiFetch } from "./api";
 
 export type AdminUserListItem = {
+  /** 관리자 사용자 목록과 사용자 선택 UI에서 쓰는 계정 요약입니다. */
   user_id: number;
   email: string;
   login_id: string | null;
@@ -11,6 +12,7 @@ export type AdminUserListItem = {
 };
 
 export type AdminUserDetail = AdminUserListItem & {
+  /** 관리자 사용자 상세 화면에서 기본 계정 정보에 FX 요약을 더한 모델입니다. */
   default_allocation_strategy: string;
   updated_at: string;
   fx_summary: {
@@ -29,6 +31,7 @@ export type AdminUserDetail = AdminUserListItem & {
 };
 
 export type Paginated<T> = {
+  /** 관리자 목록 API들이 공통으로 반환하는 페이지네이션 래퍼입니다. */
   items: T[];
   page: number;
   size: number;
@@ -37,6 +40,7 @@ export type Paginated<T> = {
 };
 
 export type AdminPost = {
+  /** 관리자 게시글 목록에서 삭제 여부까지 함께 보여주는 게시글 모델입니다. */
   post_id: number;
   author_id: number;
   author_name: string;
@@ -49,6 +53,7 @@ export type AdminPost = {
 };
 
 export type LedgerResponse = {
+  /** 관리자에서 특정 사용자의 FX 원장을 조회할 때 받는 원장 응답입니다. */
   items: Array<{
     buyDate: string;
     buyKrwAmount: number;
@@ -81,11 +86,13 @@ export type LedgerResponse = {
 };
 
 export type AdminUserLedger = {
+  /** 조회 대상 사용자 정보와 그 사용자의 FX 원장을 함께 담습니다. */
   user: AdminUserListItem;
   ledger: LedgerResponse;
 };
 
 export type AdminLotEvent = {
+  /** 관리자 FX 이벤트 로그 화면에 표시되는 로트 이벤트 모델입니다. */
   lot_event_id: number;
   user_id: number;
   event_type: string;
@@ -103,6 +110,7 @@ export type AdminLotEvent = {
 };
 
 export type AdminItemCode = {
+  /** 관리자 자산 마스터 관리 화면에서 쓰는 자산 코드 모델입니다. */
   item_code_id: number;
   item_code: string;
   item_name: string;
@@ -120,6 +128,8 @@ export function listUsers(options: {
   userStatus?: string;
   role?: string;
 } = {}) {
+  /** 관리자 사용자 목록을 검색어, 상태, role, 페이지 조건으로 조회합니다. */
+
   const params = new URLSearchParams();
   params.set("page", String(options.page ?? 1));
   params.set("size", String(options.size ?? 10));
@@ -136,6 +146,8 @@ export function listUsers(options: {
 }
 
 export function getUser(userId: number) {
+  /** 관리자 사용자 상세 화면에서 특정 사용자 정보를 조회합니다. */
+
   return apiFetch<AdminUserDetail>(`/admin/users/${userId}`);
 }
 
@@ -146,6 +158,8 @@ export function listPosts(options: {
   keyword?: string;
   postStatus?: string;
 } = {}) {
+  /** 관리자 게시글 목록을 검색어, 상태, 삭제글 포함 여부로 조회합니다. */
+
   const params = new URLSearchParams();
   params.set("page", String(options.page ?? 1));
   params.set("size", String(options.size ?? 10));
@@ -160,6 +174,8 @@ export function listPosts(options: {
 }
 
 export function getUserLedger(userId: number, period: string) {
+  /** 특정 사용자의 FX 원장을 선택 기간 기준으로 조회합니다. */
+
   return apiFetch<AdminUserLedger>(`/admin/fx/users/${userId}/ledger?period=${period}`);
 }
 
@@ -171,6 +187,8 @@ export function listLotEvents(options: {
   sellTransactionId?: string;
   rootBuyLotId?: string;
 } = {}) {
+  /** 관리자 FX 이벤트 로그를 사용자/이벤트/거래/루트 로트 조건으로 조회합니다. */
+
   const params = new URLSearchParams();
   params.set("page", String(options.page ?? 1));
   params.set("size", String(options.size ?? 10));
@@ -195,6 +213,8 @@ export function listItemCodes(options: {
   keyword?: string;
   isActive?: string;
 } = {}) {
+  /** 관리자 자산 마스터 목록을 검색어와 활성 상태 기준으로 조회합니다. */
+
   const params = new URLSearchParams();
   params.set("page", String(options.page ?? 1));
   params.set("size", String(options.size ?? 10));
@@ -212,6 +232,8 @@ export function createItemCode(input: {
   memo?: string;
   is_active: boolean;
 }) {
+  /** 관리자에서 새 자산 마스터를 생성합니다. 내부 코드는 서버가 자동 생성합니다. */
+
   return apiFetch<AdminItemCode>("/admin/item-codes", {
     method: "POST",
     body: JSON.stringify(input)
@@ -226,6 +248,8 @@ export function updateItemCode(
     is_active: boolean;
   }
 ) {
+  /** 관리자에서 기존 자산 마스터의 이름, 메모, 활성 상태를 수정합니다. */
+
   return apiFetch<AdminItemCode>(`/admin/item-codes/${itemCodeId}`, {
     method: "PUT",
     body: JSON.stringify(input)
@@ -233,6 +257,8 @@ export function updateItemCode(
 }
 
 export function deactivateItemCode(itemCodeId: number) {
+  /** 자산 마스터를 삭제하지 않고 비활성 상태로 전환합니다. */
+
   return apiFetch<AdminItemCode>(`/admin/item-codes/${itemCodeId}`, {
     method: "DELETE"
   });

@@ -7,6 +7,8 @@ import { DateSegmentInput } from "../../../../src/components/date-segment-input"
 import { createBuyLot } from "../../../../src/lib/fx-api";
 
 function NewBuyLotContent() {
+  /** FX 매수 등록 폼 상태를 관리하고 저장 성공 시 목록으로 이동합니다. */
+
   const router = useRouter();
   const [buyDate, setBuyDate] = useState("");
   const [buyKrwAmount, setBuyKrwAmount] = useState("");
@@ -15,6 +17,8 @@ function NewBuyLotContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 입력된 매수일, 원화 금액, 환율로 새 매수 로트를 생성합니다. */
+
     event.preventDefault();
     setError("");
     setIsSubmitting(true);
@@ -70,6 +74,8 @@ function NewBuyLotContent() {
 }
 
 export default function NewBuyLotPage() {
+  /** FX 매수 등록 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <NewBuyLotContent />

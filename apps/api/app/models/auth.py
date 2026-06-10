@@ -7,6 +7,8 @@ from app.db.base import ActiveMixin, Base, INET, SoftDeleteMixin, String, Text, 
 
 
 class User(TimestampMixin, SoftDeleteMixin, Base):
+    """서비스에 로그인하는 사용자 계정과 기본 선호 설정을 저장합니다."""
+
     __tablename__ = "users"
 
     user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -36,6 +38,8 @@ class User(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class Role(TimestampMixin, ActiveMixin, SoftDeleteMixin, Base):
+    """user/admin 같은 권한 역할의 마스터 데이터를 저장합니다."""
+
     __tablename__ = "roles"
 
     role_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -53,6 +57,8 @@ class Role(TimestampMixin, ActiveMixin, SoftDeleteMixin, Base):
 
 
 class UserRole(Base):
+    """사용자와 역할을 N:M으로 연결해 한 사용자가 여러 권한을 가질 수 있게 합니다."""
+
     __tablename__ = "user_roles"
 
     user_role_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -80,6 +86,8 @@ class UserRole(Base):
 
 
 class RefreshToken(Base):
+    """HttpOnly 쿠키 기반 재발급 흐름에서 사용하는 리프레시 토큰 이력을 저장합니다."""
+
     __tablename__ = "refresh_tokens"
 
     refresh_token_id: Mapped[int] = mapped_column(

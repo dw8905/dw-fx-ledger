@@ -8,6 +8,7 @@ import { listPosts, type AdminPost, type Paginated } from "../../../src/lib/admi
 import { formatDateTime, formatNumber } from "../../../src/lib/format";
 
 type PostFilters = {
+  /** 관리자 게시글 목록의 검색어, 게시 상태, 삭제글 포함 여부 필터입니다. */
   keyword: string;
   postStatus: string;
   includeDeleted: boolean;
@@ -20,6 +21,8 @@ const initialFilters: PostFilters = {
 };
 
 function PostsContent() {
+  /** 게시글 관리 목록의 검색/필터/페이지네이션 상태와 조회 결과를 관리합니다. */
+
   const [draftFilters, setDraftFilters] = useState<PostFilters>(initialFilters);
   const [filters, setFilters] = useState<PostFilters>(initialFilters);
   const [page, setPage] = useState(1);
@@ -43,12 +46,16 @@ function PostsContent() {
   }, [filters, page, size]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 검색 폼 입력값을 실제 게시글 조회 필터로 확정합니다. */
+
     event.preventDefault();
     setPage(1);
     setFilters(draftFilters);
   }
 
   function resetFilters() {
+    /** 게시글 필터를 초기값으로 되돌리고 첫 페이지를 다시 조회합니다. */
+
     setDraftFilters(initialFilters);
     setFilters(initialFilters);
     setPage(1);
@@ -158,6 +165,8 @@ function PostsContent() {
 }
 
 export default function PostsPage() {
+  /** 관리자 게시글 목록 화면 전체를 admin 권한 가드로 보호합니다. */
+
   return (
     <AdminGuard>
       <PostsContent />

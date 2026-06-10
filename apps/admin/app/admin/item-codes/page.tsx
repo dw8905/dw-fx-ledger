@@ -15,11 +15,13 @@ import {
 import { formatDateTime } from "../../../src/lib/format";
 
 type Filters = {
+  /** 자산 마스터 목록 조회에 쓰는 검색어와 활성 상태 필터입니다. */
   keyword: string;
   isActive: string;
 };
 
 type FormState = {
+  /** 자산 마스터 등록/수정 폼에서 관리하는 입력값입니다. */
   item_name: string;
   memo: string;
   is_active: boolean;
@@ -37,6 +39,8 @@ const initialForm: FormState = {
 };
 
 function ItemCodesContent() {
+  /** 자산 마스터 목록 조회와 등록/수정/비활성화 폼 상태를 관리합니다. */
+
   const [draftFilters, setDraftFilters] = useState<Filters>(initialFilters);
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [form, setForm] = useState<FormState>(initialForm);
@@ -62,18 +66,24 @@ function ItemCodesContent() {
   }, [filters, page, size]);
 
   function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 검색 폼 입력값을 실제 자산 마스터 조회 필터로 확정합니다. */
+
     event.preventDefault();
     setPage(1);
     setFilters(draftFilters);
   }
 
   function resetFilters() {
+    /** 자산 마스터 목록 필터를 초기값으로 되돌립니다. */
+
     setDraftFilters(initialFilters);
     setFilters(initialFilters);
     setPage(1);
   }
 
   function startEdit(code: AdminItemCode) {
+    /** 선택한 자산 마스터 값을 폼에 채워 수정 모드로 전환합니다. */
+
     setEditing(code);
     setForm({
       item_name: code.item_name,
@@ -83,11 +93,15 @@ function ItemCodesContent() {
   }
 
   function resetForm() {
+    /** 수정 모드를 해제하고 등록 폼을 빈 초기 상태로 되돌립니다. */
+
     setEditing(null);
     setForm(initialForm);
   }
 
   async function reload() {
+    /** 현재 페이지/필터 조건으로 자산 마스터 목록만 다시 조회합니다. */
+
     const next = await listItemCodes({
       page,
       size,
@@ -98,6 +112,8 @@ function ItemCodesContent() {
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** editing 여부에 따라 자산 마스터 등록 또는 수정 API를 호출합니다. */
+
     event.preventDefault();
     setError("");
     setSaving(true);
@@ -122,6 +138,8 @@ function ItemCodesContent() {
   }
 
   async function handleDeactivate(code: AdminItemCode) {
+    /** 자산 마스터를 삭제하지 않고 비활성 처리해 기존 거래 참조를 유지합니다. */
+
     if (!window.confirm(`${code.item_name} 코드를 비활성화할까요? 기존 거래 기록은 유지됩니다.`)) {
       return;
     }
@@ -278,6 +296,8 @@ function ItemCodesContent() {
 }
 
 export default function ItemCodesPage() {
+  /** 관리자 자산 마스터 관리 화면 전체를 admin 권한 가드로 보호합니다. */
+
   return (
     <AdminGuard>
       <ItemCodesContent />

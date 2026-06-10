@@ -7,6 +7,8 @@ import { DateSegmentInput } from "../../../../../src/components/date-segment-inp
 import { getBuyLot, updateBuyLot, type BuyLot } from "../../../../../src/lib/fx-api";
 
 function EditBuyLotContent() {
+  /** 수정 가능한 open 매수 로트를 불러와 편집 폼에 채웁니다. */
+
   const params = useParams<{ buyLotId: string }>();
   const router = useRouter();
   const buyLotId = Number(params.buyLotId);
@@ -36,6 +38,8 @@ function EditBuyLotContent() {
   }, [buyLotId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 편집된 매수 로트 입력값을 저장하고 목록으로 이동합니다. */
+
     event.preventDefault();
     setError("");
     setIsSubmitting(true);
@@ -103,6 +107,8 @@ function EditBuyLotContent() {
 }
 
 export default function EditBuyLotPage() {
+  /** FX 매수 로트 수정 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <EditBuyLotContent />

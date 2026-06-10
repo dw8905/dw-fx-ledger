@@ -8,6 +8,8 @@ import { formatDateTime } from "../../../src/lib/format";
 import { deletePost, getPost, type PostDetail } from "../../../src/lib/posts-api";
 
 export default function PostDetailPage() {
+  /** 게시글 상세를 조회하고 작성자/admin에게 수정·삭제 버튼을 보여줍니다. */
+
   const params = useParams<{ postId: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -40,6 +42,8 @@ export default function PostDetailPage() {
   }, [postId]);
 
   async function handleDelete() {
+    /** 사용자 확인 후 게시글 삭제 API를 호출하고 목록으로 이동합니다. */
+
     if (!post || !window.confirm("게시글을 삭제할까요?")) {
       return;
     }

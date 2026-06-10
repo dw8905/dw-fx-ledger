@@ -12,6 +12,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  /** 관리자 앱 전체를 AuthProvider로 감싸 인증 상태를 공유하게 합니다. */
+
   return (
     <html lang="ko">
       <body>

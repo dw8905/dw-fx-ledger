@@ -26,11 +26,13 @@ const periodOptions = [
 ];
 
 type LinePoint = {
+  /** 선형 차트에서 X축 라벨과 Y축 금액을 표현하는 점입니다. */
   label: string;
   value: number;
 };
 
 type BarPoint = {
+  /** 막대 차트에서 구간/월 라벨과 집계값을 표현하는 점입니다. */
   label: string;
   value: number;
 };
@@ -40,6 +42,8 @@ function CurrencyTooltip({ active, label, payload }: {
   label?: string;
   payload?: Array<{ value?: number }>;
 }) {
+  /** 금액 차트 hover 시 원화 포맷으로 값을 보여주는 Recharts 커스텀 툴팁입니다. */
+
   if (!active || !payload?.length) {
     return null;
   }
@@ -57,6 +61,8 @@ function CountTooltip({ active, label, payload }: {
   label?: string;
   payload?: Array<{ value?: number }>;
 }) {
+  /** 건수 차트 hover 시 정수 건수를 보여주는 Recharts 커스텀 툴팁입니다. */
+
   if (!active || !payload?.length) {
     return null;
   }
@@ -70,6 +76,8 @@ function CountTooltip({ active, label, payload }: {
 }
 
 function CumulativeProfitChart({ points }: { points: LinePoint[] }) {
+  /** 매도 allocation 순서에 따른 누적수익 흐름을 선형 차트로 표시합니다. */
+
   const lastPoint = points.at(-1);
 
   return (
@@ -126,6 +134,8 @@ function StatsBarChart({
   title: string;
   subtitle: string;
 }) {
+  /** 월별 손익이나 환율 구간 건수처럼 막대 형태의 통계를 공통 렌더링합니다. */
+
   return (
     <div className="chart-card">
       <div className="chart-heading">
@@ -163,6 +173,8 @@ function StatsBarChart({
 }
 
 function monthlyProfit(rows: LedgerRow[]) {
+  /** 매도일이 있는 원장 행만 월별로 묶어 표시손익 합계를 계산합니다. */
+
   const byMonth = new Map<string, number>();
   for (const row of rows) {
     if (!row.sellDate) {
@@ -177,6 +189,8 @@ function monthlyProfit(rows: LedgerRow[]) {
 }
 
 function openLotRateBuckets(rows: LedgerRow[]) {
+  /** 아직 매도되지 않은 open 로트를 매수환율 50원 단위 구간으로 집계합니다. */
+
   const openRows = rows.filter((row) => !row.sellDate);
   if (openRows.length === 0) {
     return [];
@@ -194,6 +208,8 @@ function openLotRateBuckets(rows: LedgerRow[]) {
 }
 
 function cumulativeProfitPoints(rows: LedgerRow[]) {
+  /** 매도 행의 누적수익 값을 차트 포인트로 변환합니다. */
+
   return rows
     .filter((row) => row.sellDate)
     .map((row) => ({
@@ -203,6 +219,8 @@ function cumulativeProfitPoints(rows: LedgerRow[]) {
 }
 
 function StatsContent() {
+  /** FX 원장 데이터를 불러와 누적수익, 월별손익, open 로트 분포 차트로 변환합니다. */
+
   const [period, setPeriod] = useState("all");
   const [data, setData] = useState<LedgerResponse | null>(null);
   const [error, setError] = useState("");
@@ -294,6 +312,8 @@ function StatsContent() {
 }
 
 export default function StatsPage() {
+  /** FX 통계 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <StatsContent />

@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 
 type PostFormProps = {
+  /** 게시글 생성/수정 화면이 공통으로 쓰는 제목/본문 폼 입력값입니다. */
   initialTitle?: string;
   initialContent?: string;
   submitLabel: string;
@@ -15,12 +16,16 @@ export function PostForm({
   submitLabel,
   onSubmit
 }: PostFormProps) {
+  /** 게시글 생성과 수정을 하나의 폼으로 처리하고 저장 실패 메시지를 표시합니다. */
+
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 기본 form submit을 막고 부모가 넘긴 저장 함수를 호출합니다. */
+
     event.preventDefault();
     setError("");
     setIsSubmitting(true);

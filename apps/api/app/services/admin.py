@@ -24,6 +24,8 @@ from app.services.fx import COMPLETED, OPEN, list_ledger
 
 
 def total_pages(total_count: int, size: int) -> int:
+    """총 건수와 페이지 크기로 UI에 표시할 전체 페이지 수를 계산합니다."""
+
     if total_count == 0:
         return 0
 
@@ -31,10 +33,14 @@ def total_pages(total_count: int, size: int) -> int:
 
 
 def _role_codes(user: User) -> list[str]:
+    """UserRole 관계에서 role_code만 꺼내 정렬된 문자열 목록으로 만듭니다."""
+
     return sorted(user_role.role.role_code for user_role in user.roles if user_role.role)
 
 
 def to_admin_user_list_item(user: User) -> AdminUserListItem:
+    """User 모델을 관리자 사용자 목록 행 스키마로 변환합니다."""
+
     return AdminUserListItem(
         user_id=user.user_id,
         email=user.email,
@@ -55,6 +61,8 @@ def list_admin_users(
     user_status: str | None,
     role: str | None,
 ) -> AdminUserListResponse:
+    """관리자 사용자 목록에 검색어, 상태, role 필터와 페이지네이션을 적용합니다."""
+
     filters = [User.is_deleted.is_(False)]
     if keyword:
         pattern = f"%{keyword.strip()}%"
@@ -89,6 +97,8 @@ def list_admin_users(
 
 
 def get_admin_user(db: Session, *, user_id: int) -> User | None:
+    """관리자 상세/원장 조회에서 사용할 사용자와 role 관계를 로드합니다."""
+
     return db.scalar(
         select(User)
         .options(selectinload(User.roles).selectinload(UserRole.role))
@@ -97,6 +107,8 @@ def get_admin_user(db: Session, *, user_id: int) -> User | None:
 
 
 def get_admin_user_detail(db: Session, *, user_id: int) -> AdminUserDetail | None:
+    """사용자 기본 정보와 FX 요약을 합쳐 관리자 상세 응답을 구성합니다."""
+
     user = get_admin_user(db, user_id=user_id)
     if user is None:
         return None
@@ -189,6 +201,8 @@ def list_admin_posts(
     post_status: str | None,
     keyword: str | None,
 ) -> AdminPostListResponse:
+    """관리자 게시글 목록에서 삭제글 포함 여부, 상태, 검색어를 적용합니다."""
+
     filters = []
     if not include_deleted:
         filters.append(BoardPost.is_deleted.is_(False))
@@ -254,6 +268,8 @@ def list_admin_lot_events(
     sell_transaction_id: int | None,
     root_buy_lot_id: int | None,
 ) -> AdminLotEventListResponse:
+    """관리자 FX 이벤트 로그에 사용자/이벤트/거래/루트 로트 필터를 적용합니다."""
+
     filters = []
     if user_id is not None:
         filters.append(FxLotEvent.user_id == user_id)
@@ -308,6 +324,8 @@ def list_admin_item_codes(
     keyword: str | None,
     is_active: bool | None,
 ) -> AdminItemCodeListResponse:
+    """관리자 자산 마스터 목록에 검색어와 활성 상태 필터를 적용합니다."""
+
     filters = [ItemCode.is_deleted.is_(False)]
     if keyword:
         pattern = f"%{keyword.strip()}%"
@@ -333,6 +351,8 @@ def list_admin_item_codes(
 
 
 def get_admin_item_code(db: Session, *, item_code_id: int) -> ItemCode | None:
+    """수정/비활성화 대상 자산 마스터를 ID로 조회합니다."""
+
     return db.scalar(
         select(ItemCode).where(
             ItemCode.item_code_id == item_code_id,
@@ -342,6 +362,8 @@ def get_admin_item_code(db: Session, *, item_code_id: int) -> ItemCode | None:
 
 
 def item_code_exists(db: Session, *, item_code: str, exclude_item_code_id: int | None = None) -> bool:
+    """자산 코드가 이미 사용 중인지 확인해 중복 등록을 막습니다."""
+
     filters = [ItemCode.item_code == item_code.strip(), ItemCode.is_deleted.is_(False)]
     if exclude_item_code_id is not None:
         filters.append(ItemCode.item_code_id != exclude_item_code_id)
@@ -349,6 +371,8 @@ def item_code_exists(db: Session, *, item_code: str, exclude_item_code_id: int |
 
 
 def item_name_exists(db: Session, *, item_name: str, exclude_item_code_id: int | None = None) -> bool:
+    """자산명을 대소문자 무시 방식으로 비교해 같은 이름의 중복 등록을 막습니다."""
+
     normalized_name = item_name.strip()
     filters = [
         func.lower(ItemCode.item_name) == normalized_name.lower(),
@@ -367,6 +391,8 @@ def create_admin_item_code(
     memo: str | None,
     is_active: bool,
 ) -> AdminItemCodeRead:
+    """관리자가 자산명을 등록하면 내부 코드 ITEM-000001 형태를 자동 생성합니다."""
+
     if item_name_exists(db, item_name=item_name):
         raise ValueError("Asset name already exists")
 
@@ -396,6 +422,8 @@ def update_admin_item_code(
     memo: str | None,
     is_active: bool,
 ) -> AdminItemCodeRead:
+    """기존 자산 마스터의 이름, 메모, 활성 상태를 수정합니다."""
+
     if item_name_exists(db, item_name=item_name, exclude_item_code_id=code.item_code_id):
         raise ValueError("Asset name already exists")
 
@@ -414,6 +442,8 @@ def deactivate_admin_item_code(
     admin_user: User,
     code: ItemCode,
 ) -> AdminItemCodeRead:
+    """자산 마스터를 삭제하지 않고 비활성 처리해 기존 거래 참조를 보존합니다."""
+
     code.is_active = False
     code.updated_by = admin_user.user_id
     db.flush()
@@ -422,6 +452,8 @@ def deactivate_admin_item_code(
 
 
 def to_admin_item_code_read(code: ItemCode) -> AdminItemCodeRead:
+    """ItemCode ORM 모델을 관리자 응답 스키마로 변환합니다."""
+
     return AdminItemCodeRead(
         item_code_id=code.item_code_id,
         item_code=code.item_code,

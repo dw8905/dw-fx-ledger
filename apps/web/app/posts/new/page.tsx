@@ -6,6 +6,8 @@ import { PostForm } from "../../../src/components/post-form";
 import { createPost } from "../../../src/lib/posts-api";
 
 export default function NewPostPage() {
+  /** 게시글 작성 폼을 보여주고 저장 성공 시 목록으로 이동합니다. */
+
   const router = useRouter();
 
   return (

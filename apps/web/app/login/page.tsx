@@ -6,6 +6,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../../src/context/auth-context";
 
 export default function LoginPage() {
+  /** 로그인 폼을 렌더링하고 이미 로그인된 사용자는 홈으로 돌려보냅니다. */
+
   const router = useRouter();
   const { login, status } = useAuth();
   const [identifier, setIdentifier] = useState("");
@@ -20,6 +22,8 @@ export default function LoginPage() {
   }, [router, status]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 로그인 폼 제출 시 AuthProvider의 login 액션을 호출합니다. */
+
     event.preventDefault();
     setError("");
     setIsSubmitting(true);

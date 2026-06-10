@@ -25,4 +25,6 @@ app.include_router(admin_router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    """로드밸런서나 개발자가 API 서버 생존 여부를 확인하는 단순 헬스체크입니다."""
+
     return {"status": "ok"}

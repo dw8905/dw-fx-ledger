@@ -10,6 +10,8 @@ import { formatDate, formatKrw, formatNumber, formatUsd } from "../../../../src/
 const periodOptions = ["all", "1y", "3y", "5y", "latest"];
 
 function LedgerContent() {
+  /** 입력한 user_id와 기간 기준으로 특정 사용자의 FX 원장을 read-only 조회합니다. */
+
   const searchParams = useSearchParams();
   const initialUserId = searchParams.get("userId") ?? "";
   const [userIdInput, setUserIdInput] = useState(initialUserId);
@@ -131,6 +133,8 @@ function LedgerContent() {
 }
 
 export default function LedgerPage() {
+  /** 관리자 사용자 FX 원장 화면 전체를 admin 권한 가드로 보호합니다. */
+
   return (
     <AdminGuard>
       <LedgerContent />

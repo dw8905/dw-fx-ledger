@@ -9,6 +9,7 @@ import { listUsers, type AdminUserListItem, type Paginated } from "../../../src/
 import { formatDateTime } from "../../../src/lib/format";
 
 type UserFilters = {
+  /** 사용자 목록 검색 폼에서 확정/임시 상태로 나누어 관리하는 필터입니다. */
   keyword: string;
   userStatus: string;
   role: string;
@@ -21,6 +22,8 @@ const emptyFilters: UserFilters = {
 };
 
 function UsersContent() {
+  /** 사용자 목록의 검색/필터/페이지네이션 상태와 조회 결과를 관리합니다. */
+
   const [draftFilters, setDraftFilters] = useState<UserFilters>(emptyFilters);
   const [filters, setFilters] = useState<UserFilters>(emptyFilters);
   const [page, setPage] = useState(1);
@@ -44,12 +47,16 @@ function UsersContent() {
   }, [filters, page, size]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 검색 폼의 임시 입력값을 실제 조회 필터로 확정하고 첫 페이지로 이동합니다. */
+
     event.preventDefault();
     setPage(1);
     setFilters(draftFilters);
   }
 
   function resetFilters() {
+    /** 사용자 목록 필터를 초기값으로 되돌리고 첫 페이지를 다시 조회합니다. */
+
     setDraftFilters(emptyFilters);
     setFilters(emptyFilters);
     setPage(1);
@@ -163,6 +170,8 @@ function UsersContent() {
 }
 
 export default function UsersPage() {
+  /** 관리자 사용자 목록 화면 전체를 admin 권한 가드로 보호합니다. */
+
   return (
     <AdminGuard>
       <UsersContent />

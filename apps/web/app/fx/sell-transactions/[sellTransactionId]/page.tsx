@@ -13,6 +13,8 @@ import {
 } from "../../../../src/lib/fx-api";
 
 function SellTransactionDetailContent() {
+  /** 매도 거래 상세, allocation 내역, 취소 입력 상태를 관리합니다. */
+
   const params = useParams<{ sellTransactionId: string }>();
   const router = useRouter();
   const sellTransactionId = useMemo(
@@ -33,6 +35,8 @@ function SellTransactionDetailContent() {
   }, [sellTransactionId]);
 
   async function handleCancel() {
+    /** 취소 사유를 서버에 보내 매도 거래와 로트 체인을 복원합니다. */
+
     setError("");
     setIsCancelling(true);
     try {
@@ -179,6 +183,8 @@ function SellTransactionDetailContent() {
 }
 
 export default function SellTransactionDetailPage() {
+  /** FX 매도 거래 상세 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <SellTransactionDetailContent />

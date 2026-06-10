@@ -3,6 +3,7 @@ import { formatNumber } from "../lib/format";
 const pageSizeOptions = [10, 20, 50];
 
 type PaginationProps = {
+  /** 관리자 목록 화면들이 공통으로 쓰는 현재 페이지/전체 페이지/size 제어값입니다. */
   page: number;
   size: number;
   totalCount: number;
@@ -19,6 +20,8 @@ export function Pagination({
   onPageChange,
   onSizeChange
 }: PaginationProps) {
+  /** 관리자 테이블 하단의 이전/다음 버튼과 page size 선택 UI를 렌더링합니다. */
+
   const safeTotalPages = Math.max(totalPages, 1);
 
   return (

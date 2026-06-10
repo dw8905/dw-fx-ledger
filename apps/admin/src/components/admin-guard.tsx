@@ -5,6 +5,8 @@ import { useEffect, type ReactNode } from "react";
 import { useAuth } from "../context/auth-context";
 
 export function AdminGuard({ children }: { children: ReactNode }) {
+  /** 로그인 여부와 admin role을 모두 확인해 관리자 화면 접근을 제한합니다. */
+
   const router = useRouter();
   const { status, user } = useAuth();
 

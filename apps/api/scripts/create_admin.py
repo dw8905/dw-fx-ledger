@@ -13,6 +13,8 @@ from app.services.roles import ADMIN_ROLE_CODE, grant_admin_role, user_role_coun
 
 
 def parse_args() -> argparse.Namespace:
+    """CLI에서 admin 계정 생성에 필요한 이메일, login_id, 비밀번호, 표시명을 읽습니다."""
+
     parser = argparse.ArgumentParser(description="Create an admin user or grant admin to an existing one.")
     parser.add_argument("--email", required=True, help="Admin email")
     parser.add_argument("--login-id", required=True, help="Admin login ID")
@@ -22,6 +24,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """기존 계정이면 admin role만 부여하고, 없으면 계정 생성 후 admin role을 부여합니다."""
+
     args = parse_args()
 
     with SessionLocal() as db:

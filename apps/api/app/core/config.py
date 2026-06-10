@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """환경변수와 .env 값을 FastAPI 설정 객체로 읽어오는 클래스입니다."""
+
     database_url: str
     secret_key: str
     access_token_expire_minutes: int = 60
@@ -17,6 +19,8 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
+        """콤마로 저장된 CORS origin 문자열을 FastAPI가 쓰는 리스트로 변환합니다."""
+
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 

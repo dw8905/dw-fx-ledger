@@ -46,6 +46,8 @@ def create_buy_lot_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> BuyLotRead:
+    """FX 매수 등록 요청을 받아 새 open 매수 로트를 생성합니다."""
+
     buy_lot = create_buy_lot(
         db,
         current_user=current_user,
@@ -68,6 +70,8 @@ def list_buy_lots_route(
     sort_by: str | None = None,
     sort_order: str | None = None,
 ) -> BuyLotListResponse:
+    """매수 로트 목록을 상태/활성/정렬/페이지 조건에 맞춰 반환합니다."""
+
     try:
         return list_buy_lots(
             db,
@@ -89,6 +93,8 @@ def get_buy_lot_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> BuyLotRead:
+    """현재 사용자의 특정 매수 로트 상세를 반환합니다."""
+
     buy_lot = get_buy_lot(db, current_user=current_user, buy_lot_id=buy_lot_id)
     if buy_lot is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Buy lot not found")
@@ -103,6 +109,8 @@ def update_buy_lot_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> BuyLotRead:
+    """아직 매도에 쓰이지 않은 매수 로트만 수정할 수 있게 서비스 오류를 변환합니다."""
+
     try:
         buy_lot = update_buy_lot(
             db,
@@ -128,6 +136,8 @@ def delete_buy_lot_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> BuyLotRead:
+    """이력이 없는 open 매수 로트만 삭제하도록 검증하고 결과를 commit합니다."""
+
     try:
         buy_lot = delete_buy_lot(
             db,
@@ -155,6 +165,8 @@ def create_sell_transaction_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SellTransactionRead:
+    """FX 매도 요청을 받아 차감 전략에 따라 로트를 분리하고 매도 거래를 생성합니다."""
+
     try:
         transaction = create_sell_transaction(
             db,
@@ -188,6 +200,8 @@ def cancel_sell_transaction_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SellTransactionRead:
+    """매도 취소 요청을 받아 로트 체인을 복원하고 충돌 상황을 409로 변환합니다."""
+
     try:
         transaction = cancel_sell_transaction(
             db,
@@ -218,6 +232,8 @@ def list_lot_events_route(
     root_buy_lot_id: int | None = None,
     sell_transaction_id: int | None = None,
 ) -> LotEventListResponse:
+    """현재 사용자의 FX 로트 이벤트 로그를 페이지 단위로 반환합니다."""
+
     return list_lot_events(
         db,
         current_user=current_user,
@@ -237,6 +253,8 @@ def list_sell_transactions_route(
     sort_by: str | None = None,
     sort_order: str | None = None,
 ) -> SellTransactionListResponse:
+    """매도 거래 목록을 정렬과 페이지 조건에 맞춰 반환합니다."""
+
     try:
         return list_sell_transactions(
             db,
@@ -256,6 +274,8 @@ def list_ledger_route(
     current_user: Annotated[User, Depends(get_current_user)],
     period: str = "all",
 ) -> LedgerResponse:
+    """현재 사용자의 FX 원장을 선택 기간 기준으로 반환합니다."""
+
     try:
         return list_ledger(db, current_user=current_user, period=period)
     except ValueError as error:
@@ -268,6 +288,8 @@ def get_sell_transaction_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SellTransactionRead:
+    """현재 사용자의 매도 거래 상세와 allocation 목록을 반환합니다."""
+
     transaction = get_sell_transaction(
         db,
         current_user=current_user,

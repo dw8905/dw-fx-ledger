@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../../src/context/auth-context";
 
 export default function LoginPage() {
+  /** 관리자 로그인 폼을 렌더링하고 admin 사용자는 관리자 홈으로 이동시킵니다. */
+
   const router = useRouter();
   const { login, status, user } = useAuth();
   const [identifier, setIdentifier] = useState("");
@@ -19,6 +21,8 @@ export default function LoginPage() {
   }, [router, status, user]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    /** 관리자 로그인 제출 시 AuthProvider의 login 액션을 호출합니다. */
+
     event.preventDefault();
     setError("");
     setIsSubmitting(true);

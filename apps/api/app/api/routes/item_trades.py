@@ -23,6 +23,8 @@ def list_item_codes_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ItemCodeListResponse:
+    """거래 입력 자동완성에 필요한 활성 자산 마스터 목록을 반환합니다."""
+
     _ = current_user
     return list_item_codes(db)
 
@@ -34,6 +36,8 @@ def list_item_trades_route(
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,
 ) -> ItemTradeListResponse:
+    """현재 사용자의 자산 거래 목록과 재고 요약을 페이지 단위로 반환합니다."""
+
     return list_item_trades(db, current_user=current_user, page=page, size=size)
 
 
@@ -43,6 +47,8 @@ def create_item_trade_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ItemTradeRead:
+    """자산 매수/매도/재고조정 등록 요청을 처리하고 검증 오류를 400으로 변환합니다."""
+
     try:
         trade = create_item_trade(
             db,
@@ -71,6 +77,8 @@ def cancel_item_trade_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ItemTradeRead:
+    """자산 거래를 취소 처리하고 재고 재계산 충돌을 409로 변환합니다."""
+
     try:
         trade = cancel_item_trade(
             db,

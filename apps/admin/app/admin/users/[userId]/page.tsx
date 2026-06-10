@@ -9,6 +9,8 @@ import { getUser, type AdminUserDetail } from "../../../../src/lib/admin-api";
 import { formatDate, formatDateTime, formatKrw, formatNumber, formatUsd } from "../../../../src/lib/format";
 
 function UserDetailContent() {
+  /** 관리자 사용자 상세와 FX 요약을 user_id 기준으로 조회해 표시합니다. */
+
   const params = useParams<{ userId: string }>();
   const userId = Number(params.userId);
   const [user, setUser] = useState<AdminUserDetail | null>(null);
@@ -130,6 +132,8 @@ function UserDetailContent() {
 }
 
 export default function UserDetailPage() {
+  /** 관리자 사용자 상세 화면 전체를 admin 권한 가드로 보호합니다. */
+
   return (
     <AdminGuard>
       <UserDetailContent />

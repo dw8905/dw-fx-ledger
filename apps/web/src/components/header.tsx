@@ -5,6 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "../context/auth-context";
 
 function currentItemLabel(tab: string | null) {
+  /** 자산관리 tab 쿼리값을 브레드크럼에 보여줄 한국어 하위 메뉴명으로 바꿉니다. */
+
   if (tab === "sell") {
     return "매도";
   }
@@ -15,6 +17,8 @@ function currentItemLabel(tab: string | null) {
 }
 
 function currentSection(pathname: string, itemTab: string | null) {
+  /** 현재 경로를 상단 브레드크럼의 상위/하위 메뉴 정보로 변환합니다. */
+
   if (pathname.startsWith("/fx/buy-lots")) {
     return { group: "FX", label: "매수" };
   }
@@ -43,6 +47,8 @@ function currentSection(pathname: string, itemTab: string | null) {
 }
 
 export function Header() {
+  /** 모든 웹 화면 상단에 고정되는 브랜드, 브레드크럼, 로그인 메뉴를 렌더링합니다. */
+
   const { status, user, logout } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();

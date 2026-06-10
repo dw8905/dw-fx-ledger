@@ -53,11 +53,15 @@ SELL_TRANSACTION_SORT_COLUMNS = {
 
 
 class InsufficientBuyLotBalanceError(ValueError):
+    """매도하려는 USD보다 사용 가능한 open 로트 잔액이 부족할 때 발생합니다."""
+
     pass
 
 
 @dataclass(frozen=True)
 class AllocationPlan:
+    """매도 등록 전에 한 매수 로트를 어떻게 쪼갤지 계산해 둔 불변 계획입니다."""
+
     source_lot: FxBuyLot
     allocated_usd_amount: Decimal
     allocated_buy_krw_amount: int
@@ -71,6 +75,8 @@ class AllocationPlan:
 
 @dataclass(frozen=True)
 class LedgerSourceRow:
+    """원장 화면 행을 만들기 전에 open 로트와 sold allocation을 같은 형태로 맞춥니다."""
+
     buy_date: date
     buy_krw_amount: int
     buy_exchange_rate: Decimal
@@ -88,18 +94,26 @@ class LedgerSourceRow:
 
 
 def quantize_numeric(value: Decimal) -> Decimal:
+    """USD/환율 계산값을 서비스 전체에서 쓰는 6자리 소수로 맞춥니다."""
+
     return value.quantize(NUMERIC_SCALE, rounding=ROUND_HALF_UP)
 
 
 def calculate_usd_amount(buy_krw_amount: int, buy_exchange_rate: Decimal) -> Decimal:
+    """원화 매수금액과 매수환율로 보유 USD 금액을 계산합니다."""
+
     return quantize_numeric(Decimal(buy_krw_amount) / buy_exchange_rate)
 
 
 def calculate_sell_krw_amount(buy_krw_amount: int, sell_exchange_rate: Decimal, buy_exchange_rate: Decimal) -> int:
+    """매수 원가에 매도환율/매수환율 비율을 적용해 매도 원화 환전액을 계산합니다."""
+
     return int((Decimal(buy_krw_amount) * sell_exchange_rate / buy_exchange_rate).to_integral_value(rounding=ROUND_CEILING))
 
 
 def calculate_allocated_buy_krw_amount(source_lot: FxBuyLot, allocated_usd_amount: Decimal) -> int:
+    """부분 매도 시 해당 USD에 대응하는 매수 원화 원가를 올림 계산합니다."""
+
     if allocated_usd_amount == source_lot.usd_amount:
         return source_lot.buy_krw_amount
 
@@ -107,6 +121,8 @@ def calculate_allocated_buy_krw_amount(source_lot: FxBuyLot, allocated_usd_amoun
 
 
 def decimal_to_payload(value: Decimal) -> str:
+    """이벤트 JSON payload에 Decimal을 안전하게 넣기 위해 문자열로 바꿉니다."""
+
     return format(value, "f")
 
 
@@ -125,6 +141,8 @@ def create_lot_event(
     related_event_id: int | None = None,
     event_payload: dict | None = None,
 ) -> FxLotEvent:
+    """FX 로트 상태 변화가 일어날 때 감사 추적용 이벤트 로그를 남깁니다."""
+
     event = FxLotEvent(
         user_id=current_user.user_id,
         event_type=event_type,
@@ -146,6 +164,8 @@ def create_lot_event(
 
 
 def normalize_sort_order(sort_order: str | None) -> str | None:
+    """정렬 방향 문자열을 asc/desc로 제한해 잘못된 쿼리 파라미터를 걸러냅니다."""
+
     if sort_order is None:
         return None
 
@@ -157,6 +177,8 @@ def normalize_sort_order(sort_order: str | None) -> str | None:
 
 
 def apply_sort(query, *, columns, sort_by: str | None, sort_order: str | None, default_columns):
+    """허용된 컬럼 목록 안에서만 정렬 조건을 적용합니다."""
+
     normalized_order = normalize_sort_order(sort_order)
     if sort_by is None or normalized_order is None:
         return query.order_by(*default_columns)
@@ -177,6 +199,8 @@ def create_buy_lot(
     buy_krw_amount: int,
     buy_exchange_rate: Decimal,
 ) -> BuyLotRead:
+    """FX 매수 로트를 생성하고 원화 금액을 USD 보유액으로 환산해 저장합니다."""
+
     normalized_rate = quantize_numeric(buy_exchange_rate)
     buy_lot = FxBuyLot(
         user_id=current_user.user_id,
@@ -207,6 +231,8 @@ def update_buy_lot(
     buy_krw_amount: int,
     buy_exchange_rate: Decimal,
 ) -> BuyLotRead | None:
+    """아직 매도에 사용되지 않은 open 매수 로트만 수정합니다."""
+
     buy_lot = db.scalar(
         select(FxBuyLot).where(
             FxBuyLot.buy_lot_id == buy_lot_id,
@@ -238,6 +264,8 @@ def delete_buy_lot(
     current_user: User,
     buy_lot_id: int,
 ) -> BuyLotRead | None:
+    """할당/이벤트 이력이 없는 open 매수 로트만 소프트 삭제합니다."""
+
     buy_lot = db.scalar(
         select(FxBuyLot)
         .where(
@@ -299,6 +327,8 @@ def delete_buy_lot(
 
 
 def _buy_lots_query(user_id: int) -> Select[tuple[FxBuyLot]]:
+    """현재 사용자의 삭제되지 않은 매수 로트를 조회하는 기본 쿼리입니다."""
+
     return select(FxBuyLot).where(FxBuyLot.user_id == user_id, FxBuyLot.is_deleted.is_(False))
 
 
@@ -313,6 +343,8 @@ def list_buy_lots(
     sort_by: str | None,
     sort_order: str | None,
 ) -> BuyLotListResponse:
+    """매수 로트 목록에 상태/활성 필터, 정렬, 페이지네이션을 적용합니다."""
+
     query = _buy_lots_query(current_user.user_id)
     count_query = select(func.count()).select_from(FxBuyLot).where(
         FxBuyLot.user_id == current_user.user_id,
@@ -350,6 +382,8 @@ def list_buy_lots(
 
 
 def get_buy_lot(db: Session, *, current_user: User, buy_lot_id: int) -> BuyLotRead | None:
+    """현재 사용자 소유의 매수 로트 하나를 조회합니다."""
+
     buy_lot = db.scalar(
         _buy_lots_query(current_user.user_id).where(FxBuyLot.buy_lot_id == buy_lot_id)
     )
@@ -360,6 +394,8 @@ def get_buy_lot(db: Session, *, current_user: User, buy_lot_id: int) -> BuyLotRe
 
 
 def to_buy_lot_read(buy_lot: FxBuyLot) -> BuyLotRead:
+    """FxBuyLot ORM 모델을 API 응답 스키마로 변환합니다."""
+
     return BuyLotRead(
         buyLotId=buy_lot.buy_lot_id,
         buyDate=buy_lot.buy_date,
@@ -373,6 +409,8 @@ def to_buy_lot_read(buy_lot: FxBuyLot) -> BuyLotRead:
 
 
 def subtract_years(value: date, years: int) -> date:
+    """윤년 2월 29일도 안전하게 처리하며 기준일에서 N년을 뺍니다."""
+
     try:
         return value.replace(year=value.year - years)
     except ValueError:
@@ -380,6 +418,8 @@ def subtract_years(value: date, years: int) -> date:
 
 
 def ledger_basis_date(row: LedgerRowRead | LedgerSourceRow) -> date:
+    """원장 기간 필터에서 매도 행은 매도일, open 행은 매수일을 기준일로 사용합니다."""
+
     if isinstance(row, LedgerRowRead):
         return row.sellDate or row.buyDate
 
@@ -387,6 +427,8 @@ def ledger_basis_date(row: LedgerRowRead | LedgerSourceRow) -> date:
 
 
 def is_visible_for_period(row: LedgerRowRead, *, period: str, latest_date: date | None) -> bool:
+    """선택한 기간 보기(all/latest/1y/3y/5y)에 원장 행이 포함되는지 판단합니다."""
+
     if period == "all" or latest_date is None:
         return True
 
@@ -403,6 +445,8 @@ def is_visible_for_period(row: LedgerRowRead, *, period: str, latest_date: date 
 
 
 def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerResponse:
+    """open 로트와 매도 allocation을 합쳐 FX 원장 행, 누적수익, 기간 요약을 만듭니다."""
+
     if period not in {"all", "1y", "3y", "5y", "latest"}:
         raise ValueError("Invalid ledger period")
 
@@ -548,6 +592,8 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
 
 
 def get_source_lots_for_strategy(db: Session, *, user_id: int, strategy: str) -> list[FxBuyLot]:
+    """자동 차감 전략에 맞는 순서로 open 매수 로트를 잠금 조회합니다."""
+
     query = (
         select(FxBuyLot)
         .where(
@@ -577,6 +623,8 @@ def build_allocation_plans(
     sell_usd_amount: Decimal,
     sell_exchange_rate: Decimal,
 ) -> list[AllocationPlan]:
+    """자동 전략으로 선택된 로트들을 매도 USD 금액만큼 순서대로 차감 계획으로 만듭니다."""
+
     remaining_to_sell = quantize_numeric(sell_usd_amount)
     normalized_sell_rate = quantize_numeric(sell_exchange_rate)
     plans: list[AllocationPlan] = []
@@ -625,6 +673,8 @@ def get_manual_source_lots(
     current_user: User,
     manual_allocations: list[tuple[int, Decimal]],
 ) -> list[tuple[FxBuyLot, Decimal]]:
+    """수동 allocation 요청의 로트가 모두 현재 사용자 소유 open 로트인지 검증합니다."""
+
     if not manual_allocations:
         raise ValueError("Manual allocations are required")
 
@@ -659,6 +709,8 @@ def build_manual_allocation_plans(
     sell_usd_amount: Decimal,
     sell_exchange_rate: Decimal,
 ) -> list[AllocationPlan]:
+    """수동으로 지정한 로트별 USD 금액이 매도 총액과 일치하는지 확인하고 계획을 만듭니다."""
+
     normalized_sell_usd = quantize_numeric(sell_usd_amount)
     normalized_sell_rate = quantize_numeric(sell_exchange_rate)
     selected_total_usd = quantize_numeric(sum((quantize_numeric(amount) for _, amount in source_lots), Decimal("0")))
@@ -710,6 +762,8 @@ def create_sell_transaction(
     manual_allocations: list[tuple[int, Decimal]] | None,
     memo: str | None,
 ) -> SellTransactionRead:
+    """매도 거래를 생성하고 원본 로트를 sold/remaining 로트로 분리해 allocation을 기록합니다."""
+
     normalized_sell_usd = quantize_numeric(sell_usd_amount)
     normalized_sell_rate = quantize_numeric(sell_exchange_rate)
     if allocation_strategy == "manual":
@@ -863,6 +917,8 @@ def list_sell_transactions(
     sort_by: str | None,
     sort_order: str | None,
 ) -> SellTransactionListResponse:
+    """현재 사용자의 매도 거래 목록에 정렬과 페이지네이션을 적용합니다."""
+
     query = select(FxSellTransaction).where(
         FxSellTransaction.user_id == current_user.user_id,
         FxSellTransaction.is_deleted.is_(False),
@@ -893,6 +949,8 @@ def get_sell_transaction(
     current_user: User,
     sell_transaction_id: int,
 ) -> SellTransactionRead | None:
+    """매도 거래 상세와 그 거래에 속한 로트 allocation 목록을 조회합니다."""
+
     transaction = db.scalar(
         select(FxSellTransaction).where(
             FxSellTransaction.sell_transaction_id == sell_transaction_id,
@@ -920,6 +978,8 @@ def cancel_sell_transaction(
     sell_transaction_id: int,
     cancel_reason: str,
 ) -> SellTransactionRead | None:
+    """최신 로트 체인에 한해 매도 거래를 취소하고 분리된 로트를 open 로트로 복원합니다."""
+
     transaction = db.scalar(
         select(FxSellTransaction)
         .where(
@@ -1073,6 +1133,8 @@ def list_lot_events(
     root_buy_lot_id: int | None,
     sell_transaction_id: int | None,
 ) -> LotEventListResponse:
+    """현재 사용자의 FX 로트 이벤트 로그를 루트 로트나 매도 거래 기준으로 필터링합니다."""
+
     query = select(FxLotEvent).where(FxLotEvent.user_id == current_user.user_id)
     count_query = select(func.count()).select_from(FxLotEvent).where(
         FxLotEvent.user_id == current_user.user_id
@@ -1098,6 +1160,8 @@ def list_lot_events(
 
 
 def to_lot_allocation_read(allocation: FxLotAllocation) -> LotAllocationRead:
+    """FxLotAllocation ORM 모델을 매도 상세 응답의 allocation 스키마로 변환합니다."""
+
     return LotAllocationRead(
         lotAllocationId=allocation.lot_allocation_id,
         sourceBuyLotId=allocation.source_buy_lot_id,
@@ -1116,6 +1180,8 @@ def to_sell_transaction_read(
     transaction: FxSellTransaction,
     allocations: list[FxLotAllocation],
 ) -> SellTransactionRead:
+    """FxSellTransaction과 allocation 목록을 매도 상세 응답 스키마로 변환합니다."""
+
     return SellTransactionRead(
         sellTransactionId=transaction.sell_transaction_id,
         sellDate=transaction.sell_date,
@@ -1134,6 +1200,8 @@ def to_sell_transaction_read(
 
 
 def to_sell_transaction_list_item(transaction: FxSellTransaction) -> SellTransactionListItem:
+    """FxSellTransaction ORM 모델을 매도 목록 한 행 응답으로 변환합니다."""
+
     return SellTransactionListItem(
         sellTransactionId=transaction.sell_transaction_id,
         sellDate=transaction.sell_date,
@@ -1151,6 +1219,8 @@ def to_sell_transaction_list_item(transaction: FxSellTransaction) -> SellTransac
 
 
 def to_lot_event_read(event: FxLotEvent) -> LotEventRead:
+    """FxLotEvent ORM 모델을 이벤트 로그 응답 스키마로 변환합니다."""
+
     return LotEventRead(
         lotEventId=event.lot_event_id,
         eventType=event.event_type,

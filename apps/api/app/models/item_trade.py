@@ -17,6 +17,8 @@ from app.db.base import (
 
 
 class ItemTrade(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
+    """자산 매수/매도/재고조정 트랜잭션과 계산된 재고 스냅샷을 저장합니다."""
+
     __tablename__ = "item_trades"
 
     item_trade_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -58,6 +60,8 @@ class ItemTrade(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
 
 
 class ItemCode(TimestampMixin, AuditUserMixin, ActiveMixin, SoftDeleteMixin, Base):
+    """관리자가 등록하는 전역 자산 마스터이며 사용자는 이 이름을 선택해 거래합니다."""
+
     __tablename__ = "item_codes"
 
     item_code_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

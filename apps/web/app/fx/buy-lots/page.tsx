@@ -8,6 +8,8 @@ import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../s
 import { deleteBuyLot, listBuyLots, type BuyLotListResponse } from "../../../src/lib/fx-api";
 
 function BuyLotsContent() {
+  /** 매수 로트 목록의 정렬 상태와 삭제 요청 흐름을 관리합니다. */
+
   const [data, setData] = useState<BuyLotListResponse | null>(null);
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState<string | null>(null);
@@ -15,6 +17,8 @@ function BuyLotsContent() {
   const [deletingBuyLotId, setDeletingBuyLotId] = useState<number | null>(null);
 
   function handleSort(field: string) {
+    /** 같은 헤더를 반복 클릭하면 asc, desc, 정렬 해제 순서로 전환합니다. */
+
     if (sortBy !== field) {
       setSortBy(field);
       setSortOrder("asc");
@@ -31,6 +35,8 @@ function BuyLotsContent() {
   }
 
   const loadBuyLots = useCallback(() => {
+    /** 현재 정렬 조건으로 첫 페이지 매수 로트를 다시 불러옵니다. */
+
     listBuyLots(1, 20, sortBy, sortOrder)
       .then(setData)
       .catch((caughtError) =>
@@ -43,6 +49,8 @@ function BuyLotsContent() {
   }, [loadBuyLots]);
 
   async function handleDelete(buyLotId: number) {
+    /** 삭제 확인 후 open 매수 로트 삭제 API를 호출하고 목록을 새로고침합니다. */
+
     if (!window.confirm("이 매수 로트를 삭제할까요? 삭제 후 기본 목록에서 제외됩니다.")) {
       return;
     }
@@ -148,6 +156,8 @@ function BuyLotsContent() {
 }
 
 export default function BuyLotsPage() {
+  /** 매수 로트 목록 화면 전체를 인증 가드로 보호합니다. */
+
   return (
     <AuthGuard>
       <BuyLotsContent />

@@ -14,6 +14,8 @@ const navItems = [
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  /** 관리자 사이드바, 현재 메뉴 표시, 로그아웃 버튼을 모든 관리자 화면에 제공합니다. */
+
   const pathname = usePathname();
   const { logout, user } = useAuth();
 
