@@ -107,10 +107,17 @@ function ItemTradeForm({
   const buyPreviewValue = tradeType === "buy" ? (selectedSummary?.inventoryValue ?? 0) + totalAmount : 0;
   const buyPreviewAverageUnitPrice =
     tradeType === "buy" && buyPreviewQuantity > 0 ? Math.ceil(buyPreviewValue / buyPreviewQuantity) : 0;
+  const maxSellQuantity = selectedSummary?.inventoryQuantity ?? 0;
   const previewMinimumProfitableUnitPrice =
     tradeType === "buy"
       ? calculateMinimumProfitableUnitPrice(buyPreviewAverageUnitPrice, feePercentNumber)
       : calculateMinimumProfitableUnitPrice(selectedSummary?.averageBuyUnitPrice ?? 0, feePercentNumber);
+
+  function handleUseMaxQuantity() {
+    if (maxSellQuantity > 0) {
+      setQuantity(String(maxSellQuantity));
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -177,10 +184,23 @@ function ItemTradeForm({
           />
         </label>
         <label>
-          수량
+          <span className="field-label-row">
+            수량
+            {tradeType === "sell" ? (
+              <button
+                className="field-action-button"
+                disabled={maxSellQuantity <= 0}
+                type="button"
+                onClick={handleUseMaxQuantity}
+              >
+                최대
+              </button>
+            ) : null}
+          </span>
           <input
             required
             min={1}
+            max={tradeType === "sell" && maxSellQuantity > 0 ? maxSellQuantity : undefined}
             type="number"
             value={quantity}
             onChange={(event) => setQuantity(event.target.value)}
