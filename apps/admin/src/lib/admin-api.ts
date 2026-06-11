@@ -44,12 +44,20 @@ export type AdminPost = {
   post_id: number;
   author_id: number;
   author_name: string;
+  board_type_code: string;
+  board_type_name: string;
   title: string;
   view_count: number;
   post_status: string;
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type BoardType = {
+  /** 공통코드 기반 게시판 타입 선택 옵션입니다. */
+  code: string;
+  name: string;
 };
 
 export type LedgerResponse = {
@@ -162,6 +170,7 @@ export function listPosts(options: {
   includeDeleted?: boolean;
   keyword?: string;
   postStatus?: string;
+  boardTypeCode?: string;
 } = {}) {
   /** 관리자 게시글 목록을 검색어, 상태, 삭제글 포함 여부로 조회합니다. */
 
@@ -175,7 +184,16 @@ export function listPosts(options: {
   if (options.postStatus) {
     params.set("post_status", options.postStatus);
   }
+  if (options.boardTypeCode) {
+    params.set("board_type_code", options.boardTypeCode);
+  }
   return apiFetch<Paginated<AdminPost>>(`/admin/posts?${params}`);
+}
+
+export function listBoardTypes() {
+  /** 관리자 게시글 필터에서 사용할 활성 게시판 타입 목록을 조회합니다. */
+
+  return apiFetch<BoardType[]>("/posts/board-types");
 }
 
 export function getUserLedger(userId: number, period: string) {

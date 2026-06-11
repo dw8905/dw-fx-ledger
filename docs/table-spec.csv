@@ -35,8 +35,18 @@ refresh_tokens,user_agent,text,true,false,,false,false,,요청 User-Agent
 refresh_tokens,ip_address,inet,true,false,,false,false,,요청 IP
 refresh_tokens,created_at,timestamptz,false,false,,false,false,now(),생성 시각
 refresh_tokens,created_by,bigint,true,false,users.user_id,false,false,,생성자
+common_codes,common_code_id,bigint,false,true,,false,false,autoincrement,공통코드 ID
+common_codes,code_group,varchar(50),false,false,,true,true,,코드 그룹
+common_codes,code,varchar(50),false,false,,true,false,,그룹 안의 실제 코드값
+common_codes,code_name,varchar(100),false,false,,false,false,,화면 표시 이름
+common_codes,description,text,true,false,,false,false,,코드 설명
+common_codes,sort_order,integer,false,false,,false,true,0,같은 그룹 안의 표시 순서
+common_codes,is_active,boolean,false,false,,false,true,true,사용 가능 여부
+common_codes,created_at,timestamptz,false,false,,false,false,now(),생성 시각
+common_codes,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
 board_posts,post_id,bigint,false,true,,false,false,autoincrement,게시글 ID
 board_posts,author_id,bigint,false,false,users.user_id,false,true,,작성자
+board_posts,board_type_code,varchar(50),false,false,,false,true,general,게시판 타입 코드
 board_posts,title,varchar(200),false,false,,false,false,,제목
 board_posts,content,text,false,false,,false,false,,본문
 board_posts,view_count,integer,false,false,,false,false,0,조회수
@@ -51,6 +61,7 @@ fx_buy_lots,user_id,bigint,false,false,users.user_id,false,true,,소유 사용�
 fx_buy_lots,parent_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,부모 로트
 fx_buy_lots,root_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,루트 로트
 fx_buy_lots,lot_status,varchar(30),false,false,,false,true,,로트 상태
+fx_buy_lots,currency_code,varchar(3),false,false,,false,true,USD,로트 통화 코드
 fx_buy_lots,buy_date,date,false,false,,false,true,,매수일
 fx_buy_lots,buy_krw_amount,bigint,false,false,,false,false,,매수 원화 금액
 fx_buy_lots,buy_exchange_rate,numeric(18,6),false,false,,false,true,,매수 적용 환율
@@ -64,6 +75,7 @@ fx_buy_lots,created_by,bigint,true,false,users.user_id,false,false,,생성자
 fx_buy_lots,updated_by,bigint,true,false,users.user_id,false,false,,수정자
 fx_sell_transactions,sell_transaction_id,bigint,false,true,,false,false,autoincrement,매도 거래 ID
 fx_sell_transactions,user_id,bigint,false,false,users.user_id,false,true,,소유 사용자
+fx_sell_transactions,currency_code,varchar(3),false,false,,false,true,USD,매도 거래 통화 코드
 fx_sell_transactions,sell_date,date,false,false,,false,true,,매도일
 fx_sell_transactions,sell_usd_amount,numeric(18,6),false,false,,false,false,,매도 USD 금액
 fx_sell_transactions,sell_exchange_rate,numeric(18,6),false,false,,false,false,,매도 적용 환율

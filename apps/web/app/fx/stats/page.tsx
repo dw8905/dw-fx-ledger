@@ -53,10 +53,17 @@ type BarPoint = {
 };
 
 type StatsCurrencyCode = CurrencyCode | "ALL";
+type ProfitLineKey = "total" | CurrencyCode;
 
 const statsCurrencyOptions: Array<{ code: StatsCurrencyCode; label: string }> = [
   { code: "ALL", label: "전체" },
   ...currencyOptions.map((option) => ({ code: option.code, label: option.label }))
+];
+
+const profitLineOptions: Array<{ key: ProfitLineKey; label: string; className: string }> = [
+  { key: "total", label: "전체", className: "legend-total" },
+  { key: "USD", label: "USD", className: "legend-usd" },
+  { key: "JPY", label: "JPY", className: "legend-jpy" }
 ];
 
 function CurrencyTooltip({ active, label, payload }: {
@@ -124,7 +131,18 @@ function MultiCurrencyTooltip({ active, label, payload }: {
 function CumulativeProfitChart({ points }: { points: MultiLinePoint[] }) {
   /** 매도 allocation 순서에 따른 전체/USD/JPY 누적수익 흐름을 선형 차트로 표시합니다. */
 
+  const [visibleLines, setVisibleLines] = useState<Record<ProfitLineKey, boolean>>({
+    total: true,
+    USD: true,
+    JPY: true
+  });
   const lastPoint = points.at(-1);
+
+  function toggleLine(lineKey: ProfitLineKey) {
+    /** 범례 버튼 클릭 시 해당 누적수익 선을 차트에서 보이거나 숨깁니다. */
+
+    setVisibleLines((current) => ({ ...current, [lineKey]: !current[lineKey] }));
+  }
 
   return (
     <div className="chart-card wide">
@@ -133,9 +151,18 @@ function CumulativeProfitChart({ points }: { points: MultiLinePoint[] }) {
           <h2>누적수익 추이</h2>
           <span>전체 KRW 손익과 통화별 누적 흐름</span>
           <div className="chart-legend">
-            <span><i className="legend-total" />전체</span>
-            <span><i className="legend-usd" />USD</span>
-            <span><i className="legend-jpy" />JPY</span>
+            {profitLineOptions.map((option) => (
+              <button
+                aria-pressed={visibleLines[option.key]}
+                className="chart-legend-button"
+                key={option.key}
+                type="button"
+                onClick={() => toggleLine(option.key)}
+              >
+                <i className={option.className} />
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
         <strong>{lastPoint ? formatKrwCurrency(lastPoint.total) : "-"}</strong>
@@ -143,8 +170,8 @@ function CumulativeProfitChart({ points }: { points: MultiLinePoint[] }) {
       {points.length === 0 ? (
         <p className="empty-chart">매도 기록이 없습니다.</p>
       ) : (
-        <div className="chart-canvas">
-          <ResponsiveContainer height={300} width="100%">
+        <div className="chart-canvas resizable">
+          <ResponsiveContainer height="100%" width="100%">
             <LineChart data={points} margin={{ bottom: 8, left: 8, right: 20, top: 12 }}>
               <CartesianGrid stroke="#dce4dd" strokeDasharray="4 4" vertical={false} />
               <XAxis dataKey="label" minTickGap={24} tick={{ fill: "#52705e", fontSize: 12 }} tickLine={false} />
@@ -155,38 +182,44 @@ function CumulativeProfitChart({ points }: { points: MultiLinePoint[] }) {
                 width={82}
               />
               <Tooltip content={<MultiCurrencyTooltip />} />
-              <Line
-                activeDot={{ r: 5 }}
-                dataKey="total"
-                dot={{ r: 3 }}
-                isAnimationActive={false}
-                name="전체"
-                stroke="#20352a"
-                strokeWidth={3}
-                type="monotone"
-              />
-              <Line
-                activeDot={{ r: 4 }}
-                connectNulls
-                dataKey="USD"
-                dot={{ r: 2 }}
-                isAnimationActive={false}
-                name="USD"
-                stroke="#2e6140"
-                strokeWidth={2}
-                type="monotone"
-              />
-              <Line
-                activeDot={{ r: 4 }}
-                connectNulls
-                dataKey="JPY"
-                dot={{ r: 2 }}
-                isAnimationActive={false}
-                name="JPY"
-                stroke="#8b5e00"
-                strokeWidth={2}
-                type="monotone"
-              />
+              {visibleLines.total ? (
+                <Line
+                  activeDot={{ r: 5 }}
+                  dataKey="total"
+                  dot={{ r: 3 }}
+                  isAnimationActive={false}
+                  name="전체"
+                  stroke="#20352a"
+                  strokeWidth={3}
+                  type="monotone"
+                />
+              ) : null}
+              {visibleLines.USD ? (
+                <Line
+                  activeDot={{ r: 4 }}
+                  connectNulls
+                  dataKey="USD"
+                  dot={{ r: 2 }}
+                  isAnimationActive={false}
+                  name="USD"
+                  stroke="#2e6140"
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              ) : null}
+              {visibleLines.JPY ? (
+                <Line
+                  activeDot={{ r: 4 }}
+                  connectNulls
+                  dataKey="JPY"
+                  dot={{ r: 2 }}
+                  isAnimationActive={false}
+                  name="JPY"
+                  stroke="#8b5e00"
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              ) : null}
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -4,18 +4,26 @@ import { FormEvent, useEffect, useState } from "react";
 import { AdminGuard } from "../../../src/components/admin-guard";
 import { AdminShell } from "../../../src/components/admin-shell";
 import { Pagination } from "../../../src/components/pagination";
-import { listPosts, type AdminPost, type Paginated } from "../../../src/lib/admin-api";
+import {
+  listBoardTypes,
+  listPosts,
+  type AdminPost,
+  type BoardType,
+  type Paginated
+} from "../../../src/lib/admin-api";
 import { formatDateTime, formatNumber } from "../../../src/lib/format";
 
 type PostFilters = {
   /** 관리자 게시글 목록의 검색어, 게시 상태, 삭제글 포함 여부 필터입니다. */
   keyword: string;
+  boardTypeCode: string;
   postStatus: string;
   includeDeleted: boolean;
 };
 
 const initialFilters: PostFilters = {
   keyword: "",
+  boardTypeCode: "",
   postStatus: "",
   includeDeleted: true
 };
@@ -28,13 +36,19 @@ function PostsContent() {
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
   const [data, setData] = useState<Paginated<AdminPost> | null>(null);
+  const [boardTypes, setBoardTypes] = useState<BoardType[]>([]);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    listBoardTypes().then(setBoardTypes).catch(() => setBoardTypes([]));
+  }, []);
 
   useEffect(() => {
     setError("");
     listPosts({
       page,
       size,
+      boardTypeCode: filters.boardTypeCode,
       includeDeleted: filters.includeDeleted,
       keyword: filters.keyword,
       postStatus: filters.postStatus
@@ -71,6 +85,22 @@ function PostsContent() {
           </div>
         </section>
         <form className="filter-bar" onSubmit={handleSubmit}>
+          <label>
+            게시판
+            <select
+              value={draftFilters.boardTypeCode}
+              onChange={(event) =>
+                setDraftFilters((current) => ({ ...current, boardTypeCode: event.target.value }))
+              }
+            >
+              <option value="">전체</option>
+              {boardTypes.map((boardType) => (
+                <option key={boardType.code} value={boardType.code}>
+                  {boardType.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             검색
             <input
@@ -121,6 +151,7 @@ function PostsContent() {
                 <thead>
                   <tr>
                     <th>ID</th>
+                    <th>게시판</th>
                     <th>제목</th>
                     <th>작성자</th>
                     <th>조회수</th>
@@ -133,6 +164,7 @@ function PostsContent() {
                   {data.items.map((post) => (
                     <tr key={post.post_id}>
                       <td>{post.post_id}</td>
+                      <td>{post.board_type_name}</td>
                       <td>{post.title}</td>
                       <td>
                         #{post.author_id} {post.author_name}

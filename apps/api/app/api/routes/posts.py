@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.auth import User
 from app.schemas.posts import (
+    BoardTypeItem,
     PostCreateRequest,
     PostDeleteResponse,
     PostDetailResponse,
@@ -15,11 +16,13 @@ from app.schemas.posts import (
     PostUpdateRequest,
 )
 from app.services.posts import (
+    InvalidBoardTypeError,
     can_mutate_post,
     create_post,
     delete_post,
     get_post_detail,
     get_post_for_mutation,
+    list_board_types,
     list_posts,
     update_post,
 )
@@ -33,10 +36,21 @@ def list_post_route(
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,
     keyword: str | None = None,
+    board_type_code: str | None = None,
 ) -> PostListResponse:
     """게시글 목록을 검색어와 페이지 조건에 맞춰 반환합니다."""
 
-    return list_posts(db, page=page, size=size, keyword=keyword)
+    try:
+        return list_posts(db, page=page, size=size, keyword=keyword, board_type_code=board_type_code)
+    except InvalidBoardTypeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get("/board-types", response_model=list[BoardTypeItem])
+def list_board_types_route(db: Annotated[Session, Depends(get_db)]) -> list[BoardTypeItem]:
+    """게시글 작성/목록 필터에서 사용할 활성 게시판 타입 목록을 반환합니다."""
+
+    return list_board_types(db)
 
 
 @router.get("/{post_id}", response_model=PostDetailResponse)
@@ -59,7 +73,17 @@ def create_post_route(
 ) -> PostMutationResponse:
     """로그인 사용자가 작성한 새 게시글을 생성합니다."""
 
-    post = create_post(db, title=payload.title, content=payload.content, author=current_user)
+    try:
+        post = create_post(
+            db,
+            title=payload.title,
+            content=payload.content,
+            author=current_user,
+            board_type_code=payload.boardTypeCode,
+        )
+    except InvalidBoardTypeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
     db.commit()
     return post
 
@@ -80,13 +104,18 @@ def update_post_route(
     if not can_mutate_post(current_user, post):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    updated_post = update_post(
-        db,
-        post=post,
-        title=payload.title,
-        content=payload.content,
-        updated_by=current_user,
-    )
+    try:
+        updated_post = update_post(
+            db,
+            post=post,
+            title=payload.title,
+            content=payload.content,
+            board_type_code=payload.boardTypeCode,
+            updated_by=current_user,
+        )
+    except InvalidBoardTypeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
     db.commit()
     return updated_post
 

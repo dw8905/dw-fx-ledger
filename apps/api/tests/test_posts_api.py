@@ -34,6 +34,8 @@ def test_posts_crud_and_permissions() -> None:
     created = create_response.json()
     post_id = created["postId"]
     assert created["authorId"] == owner["user_id"]
+    assert created["boardTypeCode"] == "general"
+    assert created["boardTypeName"] == "일반 게시판"
     assert created["postStatus"] == "published"
 
     list_response = owner_client.get("/posts")
@@ -140,6 +142,40 @@ def test_posts_list_pagination_and_keyword_search() -> None:
     searched_ids = {item["postId"] for item in search_response.json()["items"]}
     assert first_response.json()["postId"] in searched_ids
     assert second_response.json()["postId"] in searched_ids
+
+
+def test_posts_board_type_default_filter_and_invalid_type() -> None:
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+
+    board_types_response = client.get("/posts/board-types")
+    assert board_types_response.status_code == 200, board_types_response.text
+    assert {"code": "general", "name": "일반 게시판"} in board_types_response.json()
+
+    create_response = client.post(
+        "/posts",
+        json={"title": "기본 게시판 타입", "content": "board type default"},
+    )
+    assert create_response.status_code == 201, create_response.text
+    created = create_response.json()
+    assert created["boardTypeCode"] == "general"
+
+    list_response = client.get("/posts?board_type_code=general")
+    assert list_response.status_code == 200, list_response.text
+    assert any(item["postId"] == created["postId"] for item in list_response.json()["items"])
+
+    invalid_list_response = client.get("/posts?board_type_code=unknown")
+    assert invalid_list_response.status_code == 400
+
+    invalid_create_response = client.post(
+        "/posts",
+        json={
+            "title": "잘못된 게시판 타입",
+            "content": "invalid board type",
+            "boardTypeCode": "unknown",
+        },
+    )
+    assert invalid_create_response.status_code == 400
 
 
 def test_posts_openapi_paths() -> None:

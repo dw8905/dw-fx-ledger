@@ -80,6 +80,10 @@ export default function PostDetailPage() {
           </div>
           <dl className="post-meta">
             <div>
+              <dt>게시판</dt>
+              <dd>{post.boardTypeName}</dd>
+            </div>
+            <div>
               <dt>작성자</dt>
               <dd>{post.authorName}</dd>
             </div>

@@ -58,6 +58,8 @@ class AdminPostListItem(BaseModel):
     post_id: int
     author_id: int
     author_name: str
+    board_type_code: str
+    board_type_name: str
     title: str
     view_count: int
     post_status: str

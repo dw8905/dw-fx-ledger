@@ -902,11 +902,21 @@ p {
   margin-top: 8px;
 }
 
-.chart-legend span {
+.chart-legend-button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 0;
+  border: 0;
+  padding: 0;
+  color: #52705e;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chart-legend-button[aria-pressed="false"] {
+  opacity: 0.4;
 }
 
 .chart-legend i {
@@ -935,11 +945,20 @@ p {
 }
 
 .chart-canvas {
+  height: 300px;
   min-height: 300px;
 }
 
 .chart-canvas.compact {
+  height: 260px;
   min-height: 260px;
+}
+
+.chart-canvas.resizable {
+  height: 360px;
+  max-height: 760px;
+  overflow: auto;
+  resize: vertical;
 }
 
 .chart-tooltip {

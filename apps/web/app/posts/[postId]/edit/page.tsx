@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../../src/components/auth-guard";
 import { PostForm } from "../../../../src/components/post-form";
 import { useAuth } from "../../../../src/context/auth-context";
-import { getPost, updatePost, type PostDetail } from "../../../../src/lib/posts-api";
+import {
+  getPost,
+  listBoardTypes,
+  updatePost,
+  type BoardType,
+  type PostDetail
+} from "../../../../src/lib/posts-api";
 
 function EditPostContent() {
   /** 수정 대상 게시글을 불러온 뒤 작성자/admin 권한을 확인합니다. */
@@ -15,11 +21,12 @@ function EditPostContent() {
   const { user } = useAuth();
   const postId = Number(params.postId);
   const [post, setPost] = useState<PostDetail | null>(null);
+  const [boardTypes, setBoardTypes] = useState<BoardType[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getPost(postId)
-      .then((loadedPost) => {
+    Promise.all([getPost(postId), listBoardTypes().catch(() => [])])
+      .then(([loadedPost, loadedBoardTypes]) => {
         if (
           user &&
           loadedPost.authorId !== user.userId &&
@@ -30,6 +37,7 @@ function EditPostContent() {
         }
 
         setPost(loadedPost);
+        setBoardTypes(loadedBoardTypes);
       })
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "게시글을 불러오지 못했습니다.")
@@ -53,6 +61,8 @@ function EditPostContent() {
       <p className="eyebrow">Board</p>
       <h1>게시글 수정</h1>
       <PostForm
+        boardTypes={boardTypes}
+        initialBoardTypeCode={post.boardTypeCode}
         initialTitle={post.title}
         initialContent={post.content}
         submitLabel="수정"

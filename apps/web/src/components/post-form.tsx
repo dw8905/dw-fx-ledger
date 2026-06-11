@@ -2,17 +2,23 @@
 
 import { FormEvent, useState } from "react";
 
+import type { BoardType, PostInput } from "../lib/posts-api";
+
 type PostFormProps = {
   /** 게시글 생성/수정 화면이 공통으로 쓰는 제목/본문 폼 입력값입니다. */
   initialTitle?: string;
   initialContent?: string;
+  initialBoardTypeCode?: string;
+  boardTypes?: BoardType[];
   submitLabel: string;
-  onSubmit: (input: { title: string; content: string }) => Promise<void>;
+  onSubmit: (input: PostInput) => Promise<void>;
 };
 
 export function PostForm({
   initialTitle = "",
   initialContent = "",
+  initialBoardTypeCode = "general",
+  boardTypes = [],
   submitLabel,
   onSubmit
 }: PostFormProps) {
@@ -20,6 +26,7 @@ export function PostForm({
 
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
+  const [boardTypeCode, setBoardTypeCode] = useState(initialBoardTypeCode);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,7 +38,7 @@ export function PostForm({
     setIsSubmitting(true);
 
     try {
-      await onSubmit({ title, content });
+      await onSubmit({ title, content, boardTypeCode });
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "저장에 실패했습니다.");
     } finally {
@@ -41,6 +48,16 @@ export function PostForm({
 
   return (
     <form className="post-form" onSubmit={handleSubmit}>
+      <label>
+        게시판
+        <select value={boardTypeCode} onChange={(event) => setBoardTypeCode(event.target.value)}>
+          {(boardTypes.length > 0 ? boardTypes : [{ code: "general", name: "일반 게시판" }]).map((boardType) => (
+            <option key={boardType.code} value={boardType.code}>
+              {boardType.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <label>
         제목
         <input

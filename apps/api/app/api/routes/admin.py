@@ -89,6 +89,7 @@ def list_posts_route(
     include_deleted: bool = False,
     post_status: str | None = None,
     keyword: str | None = None,
+    board_type_code: str | None = None,
 ) -> AdminPostListResponse:
     """관리자 게시글 목록 화면의 삭제글 포함/상태/검색 필터를 처리합니다."""
 
@@ -99,6 +100,7 @@ def list_posts_route(
         include_deleted=include_deleted,
         post_status=post_status,
         keyword=keyword,
+        board_type_code=board_type_code,
     )
 
 

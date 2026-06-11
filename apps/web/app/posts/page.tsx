@@ -4,7 +4,12 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { Pagination } from "../../src/components/pagination";
 import { formatDateTime } from "../../src/lib/format";
-import { listPosts, type PostListResponse } from "../../src/lib/posts-api";
+import {
+  listBoardTypes,
+  listPosts,
+  type BoardType,
+  type PostListResponse
+} from "../../src/lib/posts-api";
 
 export default function PostsPage() {
   /** 게시글 목록, 검색어, 페이지 크기/번호 상태를 관리하는 게시판 화면입니다. */
@@ -12,18 +17,24 @@ export default function PostsPage() {
   const [data, setData] = useState<PostListResponse | null>(null);
   const [keywordInput, setKeywordInput] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [boardTypes, setBoardTypes] = useState<BoardType[]>([]);
+  const [boardTypeCode, setBoardTypeCode] = useState("general");
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    listBoardTypes().then(setBoardTypes).catch(() => setBoardTypes([]));
+  }, []);
+
+  useEffect(() => {
     setError("");
-    listPosts(page, size, keyword)
+    listPosts(page, size, keyword, boardTypeCode)
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "목록을 불러오지 못했습니다.")
       );
-  }, [keyword, page, size]);
+  }, [boardTypeCode, keyword, page, size]);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     /** 검색 버튼을 누르면 입력값을 확정하고 첫 페이지부터 다시 조회합니다. */
@@ -38,6 +49,7 @@ export default function PostsPage() {
 
     setKeywordInput("");
     setKeyword("");
+    setBoardTypeCode("general");
     setPage(1);
   }
 
@@ -54,6 +66,22 @@ export default function PostsPage() {
       </section>
 
       <form className="filter-bar" onSubmit={handleSearch}>
+        <label>
+          게시판
+          <select
+            value={boardTypeCode}
+            onChange={(event) => {
+              setBoardTypeCode(event.target.value);
+              setPage(1);
+            }}
+          >
+            {(boardTypes.length > 0 ? boardTypes : [{ code: "general", name: "일반 게시판" }]).map((boardType) => (
+              <option key={boardType.code} value={boardType.code}>
+                {boardType.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label>
           검색
           <input
@@ -80,6 +108,7 @@ export default function PostsPage() {
               <thead>
                 <tr>
                   <th>번호</th>
+                  <th>게시판</th>
                   <th>제목</th>
                   <th>작성자</th>
                   <th>조회수</th>
@@ -89,12 +118,13 @@ export default function PostsPage() {
               <tbody>
                 {data.items.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>게시글이 없습니다.</td>
+                    <td colSpan={6}>게시글이 없습니다.</td>
                   </tr>
                 ) : (
                   data.items.map((post) => (
                     <tr key={post.postId}>
                       <td>{post.postId}</td>
+                      <td>{post.boardTypeName}</td>
                       <td>
                         <Link href={`/posts/${post.postId}`}>{post.title}</Link>
                       </td>

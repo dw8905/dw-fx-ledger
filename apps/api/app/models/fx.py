@@ -29,6 +29,7 @@ class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.user_id"), nullable=False
     )
+    # fx_sell_transactions.currency_code: USD/JPY처럼 이 매도 거래가 처리한 통화 코드입니다.
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
     sell_date: Mapped[date] = mapped_column(nullable=False)
     sell_usd_amount: Mapped[Decimal] = mapped_column(USDNumeric, nullable=False)
@@ -68,6 +69,7 @@ class FxBuyLot(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
         BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
     )
     lot_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    # fx_buy_lots.currency_code: USD/JPY처럼 이 매수 로트가 보유한 통화 코드입니다.
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
     buy_date: Mapped[date] = mapped_column(nullable=False)
     buy_krw_amount: Mapped[int] = mapped_column(KRWAmount, nullable=False)

@@ -155,6 +155,8 @@ def test_admin_can_list_posts() -> None:
     item = next(post for post in response.json()["items"] if post["post_id"] == post_id)
     assert item["author_id"] == user["user_id"]
     assert item["title"] == "Admin posts list"
+    assert item["board_type_code"] == "general"
+    assert item["board_type_name"] == "일반 게시판"
     assert item["is_deleted"] is False
 
 
@@ -200,6 +202,12 @@ def test_admin_posts_pagination_search_and_status_filter() -> None:
     deleted_body = deleted_response.json()
     assert any(item["post_id"] == deleted_post_id for item in deleted_body["items"])
     assert all(item["post_status"] == "deleted" for item in deleted_body["items"])
+
+    board_type_response = admin_client.get(
+        f"/admin/posts?keyword={unique}&board_type_code=general&include_deleted=true"
+    )
+    assert board_type_response.status_code == 200, board_type_response.text
+    assert all(item["board_type_code"] == "general" for item in board_type_response.json()["items"])
 
 
 def test_admin_item_codes_crud_and_regular_user_forbidden() -> None:

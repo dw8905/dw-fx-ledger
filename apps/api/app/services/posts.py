@@ -1,9 +1,11 @@
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.auth import User
 from app.models.board import BoardPost
+from app.models.common import CommonCode
 from app.schemas.posts import (
+    BoardTypeItem,
     PostDetailResponse,
     PostListItem,
     PostListResponse,
@@ -13,6 +15,12 @@ from app.services.roles import ADMIN_ROLE_CODE, user_has_role
 
 PUBLISHED = "published"
 DELETED = "deleted"
+BOARD_TYPE_GROUP = "board_type"
+DEFAULT_BOARD_TYPE_CODE = "general"
+
+
+class InvalidBoardTypeError(ValueError):
+    """요청한 게시판 타입 코드가 공통코드에 없거나 비활성일 때 사용합니다."""
 
 
 def is_admin(user: User) -> bool:
@@ -27,20 +35,84 @@ def can_mutate_post(user: User, post: BoardPost) -> bool:
     return post.author_id == user.user_id or is_admin(user)
 
 
-def _base_visible_posts_query() -> Select[tuple[BoardPost, str]]:
+def normalize_board_type_code(board_type_code: str | None) -> str:
+    """빈 게시판 타입 입력을 기본 게시판 코드로 치환합니다."""
+
+    return (board_type_code or DEFAULT_BOARD_TYPE_CODE).strip() or DEFAULT_BOARD_TYPE_CODE
+
+
+def get_active_board_type(db: Session, board_type_code: str) -> CommonCode | None:
+    """common_codes에서 활성화된 게시판 타입 코드 한 건을 조회합니다."""
+
+    return db.scalar(
+        select(CommonCode).where(
+            CommonCode.code_group == BOARD_TYPE_GROUP,
+            CommonCode.code == board_type_code,
+            CommonCode.is_active.is_(True),
+        )
+    )
+
+
+def require_active_board_type(db: Session, board_type_code: str | None) -> CommonCode:
+    """요청 게시판 타입이 유효한지 검증하고 없으면 명시적인 예외를 발생시킵니다."""
+
+    normalized_code = normalize_board_type_code(board_type_code)
+    board_type = get_active_board_type(db, normalized_code)
+    if board_type is None:
+        raise InvalidBoardTypeError(f"Invalid board type: {normalized_code}")
+    return board_type
+
+
+def list_board_types(db: Session) -> list[BoardTypeItem]:
+    """프론트가 게시판 타입 선택 UI를 만들 수 있도록 활성 공통코드 목록을 반환합니다."""
+
+    rows = db.scalars(
+        select(CommonCode)
+        .where(CommonCode.code_group == BOARD_TYPE_GROUP, CommonCode.is_active.is_(True))
+        .order_by(CommonCode.sort_order.asc(), CommonCode.code.asc())
+    ).all()
+    return [BoardTypeItem(code=row.code, name=row.code_name) for row in rows]
+
+
+def board_type_name_or_code(board_type_code: str, code_name: str | None) -> str:
+    """공통코드 이름이 없을 때도 화면이 깨지지 않도록 코드값을 대체 이름으로 사용합니다."""
+
+    return code_name or board_type_code
+
+
+def _base_visible_posts_query() -> Select[tuple[BoardPost, str, str | None]]:
     """일반 사용자가 볼 수 있는 published 게시글과 작성자명을 함께 조회하는 기본 쿼리입니다."""
 
     return (
-        select(BoardPost, User.display_name)
+        select(BoardPost, User.display_name, CommonCode.code_name)
         .join(User, User.user_id == BoardPost.author_id)
+        .outerjoin(
+            CommonCode,
+            and_(
+                CommonCode.code_group == BOARD_TYPE_GROUP,
+                CommonCode.code == BoardPost.board_type_code,
+            ),
+        )
         .where(BoardPost.is_deleted.is_(False), BoardPost.post_status == PUBLISHED)
     )
 
 
-def list_posts(db: Session, *, page: int, size: int, keyword: str | None = None) -> PostListResponse:
+def list_posts(
+    db: Session,
+    *,
+    page: int,
+    size: int,
+    keyword: str | None = None,
+    board_type_code: str | None = None,
+) -> PostListResponse:
     """게시판 목록에서 검색어와 페이지네이션을 적용해 공개 게시글만 반환합니다."""
 
-    filters = [BoardPost.is_deleted.is_(False), BoardPost.post_status == PUBLISHED]
+    board_type = require_active_board_type(db, board_type_code)
+    filters = [
+        BoardPost.is_deleted.is_(False),
+        BoardPost.post_status == PUBLISHED,
+        BoardPost.board_type_code == board_type.code,
+    ]
     if keyword:
         pattern = f"%{keyword.strip()}%"
         filters.append(
@@ -69,12 +141,14 @@ def list_posts(db: Session, *, page: int, size: int, keyword: str | None = None)
         items=[
             PostListItem(
                 postId=post.post_id,
+                boardTypeCode=post.board_type_code,
+                boardTypeName=board_type_name_or_code(post.board_type_code, board_type_name),
                 title=post.title,
                 authorName=author_name,
                 viewCount=post.view_count,
                 createdAt=post.created_at,
             )
-            for post, author_name in rows
+            for post, author_name, board_type_name in rows
         ],
         page=page,
         size=size,
@@ -82,7 +156,7 @@ def list_posts(db: Session, *, page: int, size: int, keyword: str | None = None)
     )
 
 
-def get_visible_post_with_author(db: Session, post_id: int) -> tuple[BoardPost, str] | None:
+def get_visible_post_with_author(db: Session, post_id: int) -> tuple[BoardPost, str, str | None] | None:
     """상세 조회 가능한 게시글 하나와 작성자 표시명을 함께 찾습니다."""
 
     return db.execute(
@@ -97,11 +171,11 @@ def get_post_detail(db: Session, post_id: int) -> PostDetailResponse | None:
     if row is None:
         return None
 
-    post, author_name = row
+    post, author_name, board_type_name = row
     post.view_count += 1
     db.flush()
     db.refresh(post)
-    return to_detail_response(post, author_name)
+    return to_detail_response(post, author_name, board_type_name)
 
 
 def get_post_for_mutation(db: Session, post_id: int) -> BoardPost | None:
@@ -116,11 +190,20 @@ def get_post_for_mutation(db: Session, post_id: int) -> BoardPost | None:
     )
 
 
-def create_post(db: Session, *, title: str, content: str, author: User) -> PostMutationResponse:
+def create_post(
+    db: Session,
+    *,
+    title: str,
+    content: str,
+    author: User,
+    board_type_code: str | None = None,
+) -> PostMutationResponse:
     """현재 사용자를 작성자로 하여 새 게시글을 생성합니다."""
 
+    board_type = require_active_board_type(db, board_type_code)
     post = BoardPost(
         author_id=author.user_id,
+        board_type_code=board_type.code,
         title=title,
         content=content,
         created_by=author.user_id,
@@ -129,7 +212,7 @@ def create_post(db: Session, *, title: str, content: str, author: User) -> PostM
     db.add(post)
     db.flush()
     db.refresh(post)
-    return to_mutation_response(post, author.display_name)
+    return to_mutation_response(post, author.display_name, board_type.code_name)
 
 
 def update_post(
@@ -138,9 +221,16 @@ def update_post(
     post: BoardPost,
     title: str,
     content: str,
+    board_type_code: str | None,
     updated_by: User,
 ) -> PostMutationResponse:
     """권한 확인이 끝난 게시글의 제목과 본문을 최신 입력값으로 갱신합니다."""
+
+    board_type_name: str | None = None
+    if board_type_code is not None:
+        board_type = require_active_board_type(db, board_type_code)
+        post.board_type_code = board_type.code
+        board_type_name = board_type.code_name
 
     post.title = title
     post.content = content
@@ -148,7 +238,14 @@ def update_post(
     db.flush()
     db.refresh(post)
     author_name = db.scalar(select(User.display_name).where(User.user_id == post.author_id)) or ""
-    return to_mutation_response(post, author_name)
+    if board_type_name is None:
+        board_type_name = db.scalar(
+            select(CommonCode.code_name).where(
+                CommonCode.code_group == BOARD_TYPE_GROUP,
+                CommonCode.code == post.board_type_code,
+            )
+        )
+    return to_mutation_response(post, author_name, board_type_name)
 
 
 def delete_post(db: Session, *, post: BoardPost, deleted_by: User) -> None:
@@ -160,11 +257,17 @@ def delete_post(db: Session, *, post: BoardPost, deleted_by: User) -> None:
     db.flush()
 
 
-def to_detail_response(post: BoardPost, author_name: str) -> PostDetailResponse:
+def to_detail_response(
+    post: BoardPost,
+    author_name: str,
+    board_type_name: str | None,
+) -> PostDetailResponse:
     """BoardPost 모델을 상세 화면 응답 스키마로 변환합니다."""
 
     return PostDetailResponse(
         postId=post.post_id,
+        boardTypeCode=post.board_type_code,
+        boardTypeName=board_type_name_or_code(post.board_type_code, board_type_name),
         title=post.title,
         content=post.content,
         authorId=post.author_id,
@@ -176,11 +279,17 @@ def to_detail_response(post: BoardPost, author_name: str) -> PostDetailResponse:
     )
 
 
-def to_mutation_response(post: BoardPost, author_name: str) -> PostMutationResponse:
+def to_mutation_response(
+    post: BoardPost,
+    author_name: str,
+    board_type_name: str | None,
+) -> PostMutationResponse:
     """생성/수정 직후 재사용할 게시글 응답 스키마로 변환합니다."""
 
     return PostMutationResponse(
         postId=post.post_id,
+        boardTypeCode=post.board_type_code,
+        boardTypeName=board_type_name_or_code(post.board_type_code, board_type_name),
         title=post.title,
         content=post.content,
         authorId=post.author_id,

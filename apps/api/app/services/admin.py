@@ -1,11 +1,12 @@
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.auth import User, UserRole
 from app.models.board import BoardPost
+from app.models.common import CommonCode
 from app.models.fx import FxBuyLot, FxLotEvent, FxSellTransaction
 from app.models.item_trade import ItemCode
 from app.schemas.admin import (
@@ -21,6 +22,7 @@ from app.schemas.admin import (
     AdminUserListResponse,
 )
 from app.services.fx import COMPLETED, OPEN, list_ledger
+from app.services.posts import BOARD_TYPE_GROUP, board_type_name_or_code
 
 
 def total_pages(total_count: int, size: int) -> int:
@@ -200,6 +202,7 @@ def list_admin_posts(
     include_deleted: bool,
     post_status: str | None,
     keyword: str | None,
+    board_type_code: str | None,
 ) -> AdminPostListResponse:
     """관리자 게시글 목록에서 삭제글 포함 여부, 상태, 검색어를 적용합니다."""
 
@@ -208,6 +211,8 @@ def list_admin_posts(
         filters.append(BoardPost.is_deleted.is_(False))
     if post_status is not None:
         filters.append(BoardPost.post_status == post_status)
+    if board_type_code:
+        filters.append(BoardPost.board_type_code == board_type_code)
     if keyword:
         pattern = f"%{keyword.strip()}%"
         filters.append(
@@ -228,8 +233,15 @@ def list_admin_posts(
     )
     total_count = db.scalar(count_query) or 0
     rows = db.execute(
-        select(BoardPost, User.display_name)
+        select(BoardPost, User.display_name, CommonCode.code_name)
         .join(User, User.user_id == BoardPost.author_id)
+        .outerjoin(
+            CommonCode,
+            and_(
+                CommonCode.code_group == BOARD_TYPE_GROUP,
+                CommonCode.code == BoardPost.board_type_code,
+            ),
+        )
         .where(*filters)
         .order_by(BoardPost.created_at.desc(), BoardPost.post_id.desc())
         .offset((page - 1) * size)
@@ -242,6 +254,8 @@ def list_admin_posts(
                 post_id=post.post_id,
                 author_id=post.author_id,
                 author_name=author_name,
+                board_type_code=post.board_type_code,
+                board_type_name=board_type_name_or_code(post.board_type_code, board_type_name),
                 title=post.title,
                 view_count=post.view_count,
                 post_status=post.post_status,
@@ -249,7 +263,7 @@ def list_admin_posts(
                 created_at=post.created_at,
                 updated_at=post.updated_at,
             )
-            for post, author_name in rows
+            for post, author_name, board_type_name in rows
         ],
         page=page,
         size=size,
