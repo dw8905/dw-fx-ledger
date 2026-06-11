@@ -1,0 +1,61 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://fx_ledger:CHANGE_ME@192.168.0.3:30432/fx_ledger_dev}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+      - api-venv:/app/.venv
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/backend}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://api:8000}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/repo/apps/web
+      - ./packages/shared:/repo/packages/shared
+      - web-root-node-modules:/repo/node_modules
+      - web-app-node-modules:/repo/apps/web/node_modules
+      - web-next:/repo/apps/web/.next
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/backend}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://api:8000}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./apps/admin:/repo/apps/admin
+      - ./packages/shared:/repo/packages/shared
+      - admin-root-node-modules:/repo/node_modules
+      - admin-app-node-modules:/repo/apps/admin/node_modules
+      - admin-next:/repo/apps/admin/.next
+    depends_on:
+      - api
+
+volumes:
+  api-venv:
+  web-root-node-modules:
+  web-app-node-modules:
+  web-next:
+  admin-root-node-modules:
+  admin-app-node-modules:
+  admin-next:

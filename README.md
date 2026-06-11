@@ -24,6 +24,11 @@ DB
 
 - PostgreSQL
 
+Dev Runtime
+
+- 로컬 직접 실행: pnpm, uv
+- 컨테이너 실행: Docker Compose, Python 3.12 API 컨테이너, Node.js 22 Web/Admin 컨테이너
+
 Auth
 
 - HttpOnly Cookie 기반 JWT Access Token / Refresh Token
@@ -238,6 +243,7 @@ event 기록
 
 추가 문서:
 
+- Docker Compose 개발 실행: [`docs/docker-dev.md`](docs/docker-dev.md)
 - FX 핵심 로직 순서도: [`docs/fx-core-flow.md`](docs/fx-core-flow.md)
 - GPT/AI 세션 인수인계 메모: [`docs/gpt-context-summary.md`](docs/gpt-context-summary.md)
 
@@ -338,6 +344,45 @@ docker compose up -d postgres
 
 로컬 환경 변수는 `.env.example`을 참고해 각 앱의 `.env`에 설정합니다. `.env` 파일은 커밋하지 않습니다.
 
+### Docker Compose 개발 실행
+
+호스트 WSL에 Docker, Docker Compose, Git만 있는 경우에는 API/Web/Admin 런타임을 컨테이너에서 실행할 수 있습니다. 이 구성은 PostgreSQL 컨테이너를 띄우지 않고 외부 TrueNAS PostgreSQL을 사용합니다.
+
+```bash
+cp .env.docker.example .env.docker.local
+vi .env.docker.local
+chmod +x scripts/docker-dev-*.sh
+./scripts/docker-dev-up.sh
+```
+
+`.env.docker.local`에는 실제 DB 비밀번호를 넣고 커밋하지 않습니다.
+
+```text
+DATABASE_URL=postgresql+psycopg://fx_ledger:실제비밀번호@192.168.0.3:30432/fx_ledger_dev
+SECRET_KEY=dev-secret-change-me
+```
+
+Docker 상태 확인:
+
+```bash
+./scripts/docker-dev-ps.sh
+docker compose -f docker-compose.dev.yml ps
+```
+
+중지:
+
+```bash
+./scripts/docker-dev-down.sh
+```
+
+DB 연결 확인:
+
+```bash
+docker compose --env-file .env.docker.local -f docker-compose.dev.yml exec api uv run alembic current
+```
+
+`/health` 응답은 API 프로세스 상태 확인용이며 DB 연결 성공을 보장하지 않습니다. 자세한 내용은 [`docs/docker-dev.md`](docs/docker-dev.md)를 참고합니다.
+
 ### 통합 Dev 실행
 
 API, Web, Admin을 백그라운드에서 한 번에 실행합니다.
@@ -351,6 +396,8 @@ pnpm start
 ```bash
 pnpm status
 ```
+
+`pnpm status`는 Docker 컨테이너 상태가 아니라 기존 로컬 실행 방식의 `.dev/*.pid` 상태를 확인합니다.
 
 중지:
 

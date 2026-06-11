@@ -1,0 +1,24 @@
+FROM node:22-bookworm-slim
+
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    PNPM_STORE_DIR=/pnpm/store
+
+WORKDIR /repo
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY apps/admin/package.json apps/admin/package.json
+
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile --filter @dw-fx-ledger/admin... --reporter=append-only
+
+COPY packages/shared ./packages/shared
+COPY apps/admin ./apps/admin
+
+EXPOSE 3001
+
+CMD ["pnpm", "--filter", "@dw-fx-ledger/admin", "dev", "--hostname", "0.0.0.0", "--port", "3001"]
