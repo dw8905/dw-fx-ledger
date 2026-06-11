@@ -75,6 +75,7 @@ export type LedgerResponse = {
     totalRows: number;
     visibleRows: number;
     openLotCount: number;
+    totalOpenUsdAmount: string;
     soldAllocationCount: number;
     totalSellTransactionCount: number;
     totalRealProfitKrw: number;

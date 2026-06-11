@@ -151,6 +151,7 @@ class LedgerSummaryRead(BaseModel):
     totalRows: int
     visibleRows: int
     openLotCount: int
+    totalOpenUsdAmount: Decimal
     soldAllocationCount: int
     totalSellTransactionCount: int
     totalRealProfitKrw: int

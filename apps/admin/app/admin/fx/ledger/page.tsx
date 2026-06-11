@@ -91,6 +91,10 @@ function LedgerContent() {
                 <strong>{formatNumber(data.ledger.summary.openLotCount)}</strong>
               </div>
               <div>
+                <span>환전가능 USD</span>
+                <strong>{formatUsd(data.ledger.summary.totalOpenUsdAmount)}</strong>
+              </div>
+              <div>
                 <span>최종 누적수익</span>
                 <strong>{formatKrw(data.ledger.summary.finalCumulativeProfitKrw)}</strong>
               </div>

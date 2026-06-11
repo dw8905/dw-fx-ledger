@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import {
   formatCompactDate,
-  formatKrw,
   formatKrwCurrency,
   formatKrwRate,
   formatUsdCurrency
@@ -169,24 +168,8 @@ function LedgerContent() {
         <>
           <section className="ledger-summary">
             <div>
-              <span>전체 행</span>
-              <strong>{formatKrw(data.summary.totalRows)}</strong>
-            </div>
-            <div>
-              <span>표시 행</span>
-              <strong>{formatKrw(data.summary.visibleRows)}</strong>
-            </div>
-            <div>
-              <span>Open 로트</span>
-              <strong>{formatKrw(data.summary.openLotCount)}</strong>
-            </div>
-            <div>
-              <span>매도 Allocation</span>
-              <strong>{formatKrw(data.summary.soldAllocationCount)}</strong>
-            </div>
-            <div>
-              <span>매도 거래</span>
-              <strong>{formatKrw(data.summary.totalSellTransactionCount)}</strong>
+              <span>환전가능 USD</span>
+              <strong>{formatUsdCurrency(data.summary.totalOpenUsdAmount)}</strong>
             </div>
             <div>
               <span>표시손익 합계</span>

@@ -558,6 +558,9 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
     visible_items = [
         item for item in items if is_visible_for_period(item, period=period, latest_date=latest_date)
     ]
+    total_open_usd_amount = quantize_numeric(
+        sum((row.usd_amount for row in open_rows), Decimal("0"))
+    )
     total_display_profit = sum(item.profitKrw for item in visible_items)
     total_real_profit = db.scalar(
         select(func.coalesce(func.sum(FxSellTransaction.total_real_profit_krw), 0)).where(
@@ -580,6 +583,7 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
             totalRows=len(items),
             visibleRows=len(visible_items),
             openLotCount=len(open_rows),
+            totalOpenUsdAmount=total_open_usd_amount,
             soldAllocationCount=len(sold_rows),
             totalSellTransactionCount=total_sell_transaction_count,
             totalRealProfitKrw=total_real_profit,

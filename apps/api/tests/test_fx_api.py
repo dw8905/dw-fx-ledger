@@ -551,6 +551,7 @@ def test_ledger_open_sold_cumulative_average_and_periods() -> None:
     assert ledger["summary"]["totalRows"] == 5
     assert ledger["summary"]["visibleRows"] == 5
     assert ledger["summary"]["openLotCount"] == 3
+    assert ledger["summary"]["totalOpenUsdAmount"] == "200.000000"
     assert ledger["summary"]["soldAllocationCount"] == 2
     assert ledger["summary"]["totalSellTransactionCount"] == 2
     assert ledger["summary"]["totalDisplayProfitKrw"] == 10000
