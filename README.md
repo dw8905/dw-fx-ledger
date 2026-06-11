@@ -351,8 +351,7 @@ docker compose up -d postgres
 ```bash
 cp .env.docker.example .env.docker.local
 vi .env.docker.local
-chmod +x scripts/docker-dev-*.sh
-./scripts/docker-dev-up.sh
+bash scripts/docker-dev-up.sh
 ```
 
 `.env.docker.local`에는 실제 DB 비밀번호를 넣고 커밋하지 않습니다.
@@ -365,14 +364,14 @@ SECRET_KEY=dev-secret-change-me
 Docker 상태 확인:
 
 ```bash
-./scripts/docker-dev-ps.sh
+bash scripts/docker-dev-ps.sh
 docker compose -f docker-compose.dev.yml ps
 ```
 
 중지:
 
 ```bash
-./scripts/docker-dev-down.sh
+bash scripts/docker-dev-down.sh
 ```
 
 DB 연결 확인:
