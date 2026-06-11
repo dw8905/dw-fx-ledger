@@ -4,11 +4,17 @@ import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import {
   formatCompactDate,
+  formatForeignCurrency,
   formatKrwCurrency,
-  formatKrwRate,
-  formatUsdCurrency
+  formatKrwRate
 } from "../../../src/lib/format";
-import { getLedger, type LedgerResponse } from "../../../src/lib/fx-api";
+import {
+  currencyOptions,
+  getCurrencyOption,
+  getLedger,
+  type CurrencyCode,
+  type LedgerResponse
+} from "../../../src/lib/fx-api";
 
 const periodOptions = [
   { value: "all", label: "전체" },
@@ -50,7 +56,7 @@ function buildLedgerCsv(data: LedgerResponse) {
     "매수일",
     "매수원화환전금액",
     "매수적용환율",
-    "달러환전금액",
+    `${getCurrencyOption(data.summary.currencyCode).amountLabel}환전금액`,
     "매도일",
     "매도적용환율",
     "매도원화환전금액",
@@ -62,7 +68,7 @@ function buildLedgerCsv(data: LedgerResponse) {
     formatCompactDate(row.buyDate),
     formatKrwCurrency(row.buyKrwAmount),
     formatKrwRate(row.buyExchangeRate),
-    formatUsdCurrency(row.usdAmount),
+    formatForeignCurrency(row.usdAmount, row.currencyCode),
     formatNullableDate(row.sellDate),
     formatNullableKrwRate(row.sellExchangeRate),
     formatNullableKrw(row.sellKrwAmount),
@@ -88,7 +94,7 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
-function getCsvFilename(period: string) {
+function getCsvFilename(period: string, currencyCode: string) {
   /** 기간과 한국시간 타임스탬프를 포함한 CSV 파일명을 만듭니다. */
 
   const timestamp = new Intl.DateTimeFormat("sv-SE", {
@@ -103,24 +109,25 @@ function getCsvFilename(period: string) {
     .format(new Date())
     .replaceAll(" ", "_")
     .replaceAll(":", "");
-  return `fx-ledger-${period}-${timestamp}.csv`;
+  return `fx-ledger-${currencyCode.toLowerCase()}-${period}-${timestamp}.csv`;
 }
 
 function LedgerContent() {
   /** FX 원장 기간 필터, 요약 카드, 그리드, CSV 다운로드 상태를 관리합니다. */
 
   const [period, setPeriod] = useState("all");
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("USD");
   const [data, setData] = useState<LedgerResponse | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    getLedger(period)
+    getLedger(period, currencyCode)
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "원장을 불러오지 못했습니다.")
       );
-  }, [period]);
+  }, [period, currencyCode]);
 
   function handleCsvDownload() {
     /** 원장 데이터가 있을 때만 CSV 문자열을 만들고 다운로드합니다. */
@@ -129,8 +136,10 @@ function LedgerContent() {
       return;
     }
 
-    downloadCsv(getCsvFilename(data.period), buildLedgerCsv(data));
+    downloadCsv(getCsvFilename(data.period, data.summary.currencyCode), buildLedgerCsv(data));
   }
+
+  const selectedCurrency = getCurrencyOption(currencyCode);
 
   return (
     <main className="content-page ledger-page">
@@ -140,6 +149,16 @@ function LedgerContent() {
           <h1>FX 원장</h1>
         </div>
         <div className="ledger-actions">
+          <label className="period-select">
+            통화
+            <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value as CurrencyCode)}>
+              {currencyOptions.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="period-select">
             기간 보기
             <select value={period} onChange={(event) => setPeriod(event.target.value)}>
@@ -168,8 +187,8 @@ function LedgerContent() {
         <>
           <section className="ledger-summary">
             <div>
-              <span>환전가능 USD</span>
-              <strong>{formatUsdCurrency(data.summary.totalOpenUsdAmount)}</strong>
+              <span>환전가능 {selectedCurrency.amountLabel}</span>
+              <strong>{formatForeignCurrency(data.summary.totalOpenUsdAmount, data.summary.currencyCode)}</strong>
             </div>
             <div>
               <span>표시손익 합계</span>
@@ -192,7 +211,7 @@ function LedgerContent() {
                   <th>매수일</th>
                   <th>매수원화환전금액</th>
                   <th>매수적용환율</th>
-                  <th>달러환전금액</th>
+                  <th>{selectedCurrency.amountLabel}환전금액</th>
                   <th className="calc-col">매도일</th>
                   <th className="calc-col">매도적용환율</th>
                   <th className="calc-col">매도원화환전금액</th>
@@ -207,7 +226,7 @@ function LedgerContent() {
                     <td>{formatCompactDate(row.buyDate)}</td>
                     <td className="numeric">{formatKrwCurrency(row.buyKrwAmount)}</td>
                     <td className="numeric">{formatKrwRate(row.buyExchangeRate)}</td>
-                    <td className="numeric">{formatUsdCurrency(row.usdAmount)}</td>
+                    <td className="numeric">{formatForeignCurrency(row.usdAmount, row.currencyCode)}</td>
                     <td className="calc-col">{formatNullableDate(row.sellDate)}</td>
                     <td className="calc-col numeric">{formatNullableKrwRate(row.sellExchangeRate)}</td>
                     <td className="calc-col numeric">{formatNullableKrw(row.sellKrwAmount)}</td>

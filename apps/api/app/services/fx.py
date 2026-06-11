@@ -33,6 +33,10 @@ SELL_TRANSACTION_CANCELLED = "sell_transaction_cancelled"
 LOT_RESTORED = "lot_restored"
 NUMERIC_SCALE = Decimal("0.000001")
 MIN_USD_AMOUNT = Decimal("0.000001")
+SUPPORTED_CURRENCIES = {
+    "USD": Decimal("1"),
+    "JPY": Decimal("100"),
+}
 BUY_LOT_SORT_COLUMNS = {
     "buy_date": FxBuyLot.buy_date,
     "buy_exchange_rate": FxBuyLot.buy_exchange_rate,
@@ -78,6 +82,8 @@ class LedgerSourceRow:
     """원장 화면 행을 만들기 전에 open 로트와 sold allocation을 같은 형태로 맞춥니다."""
 
     buy_date: date
+    currency_code: str
+    quote_unit: Decimal
     buy_krw_amount: int
     buy_exchange_rate: Decimal
     usd_amount: Decimal
@@ -99,25 +105,65 @@ def quantize_numeric(value: Decimal) -> Decimal:
     return value.quantize(NUMERIC_SCALE, rounding=ROUND_HALF_UP)
 
 
-def calculate_usd_amount(buy_krw_amount: int, buy_exchange_rate: Decimal) -> Decimal:
-    """원화 매수금액과 매수환율로 보유 USD 금액을 계산합니다."""
+def normalize_currency_code(currency_code: str | None) -> str:
+    """요청 통화 코드를 대문자로 맞추고 지원하지 않는 통화는 거부합니다."""
 
-    return quantize_numeric(Decimal(buy_krw_amount) / buy_exchange_rate)
+    normalized = (currency_code or "USD").upper()
+    if normalized not in SUPPORTED_CURRENCIES:
+        raise ValueError("Invalid currency_code")
+
+    return normalized
 
 
-def calculate_sell_krw_amount(buy_krw_amount: int, sell_exchange_rate: Decimal, buy_exchange_rate: Decimal) -> int:
-    """매수 원가에 매도환율/매수환율 비율을 적용해 매도 원화 환전액을 계산합니다."""
+def get_quote_unit(currency_code: str) -> Decimal:
+    """USD는 1, JPY는 100처럼 환율 고시 단위를 반환합니다."""
 
-    return int((Decimal(buy_krw_amount) * sell_exchange_rate / buy_exchange_rate).to_integral_value(rounding=ROUND_CEILING))
+    return SUPPORTED_CURRENCIES[normalize_currency_code(currency_code)]
+
+
+def calculate_foreign_amount(
+    buy_krw_amount: int,
+    buy_exchange_rate: Decimal,
+    currency_code: str,
+) -> Decimal:
+    """원화 매수금액과 매수환율로 보유 외화 금액을 계산합니다."""
+
+    return quantize_numeric(
+        Decimal(buy_krw_amount) / buy_exchange_rate * get_quote_unit(currency_code)
+    )
+
+
+def calculate_sell_krw_amount(
+    foreign_amount: Decimal,
+    allocated_buy_krw_amount: int,
+    sell_exchange_rate: Decimal,
+    buy_exchange_rate: Decimal,
+    currency_code: str,
+) -> int:
+    """외화 수량과 매도환율, 통화 고시 단위로 매도 원화 환전액을 계산합니다."""
+
+    if normalize_currency_code(currency_code) == "USD":
+        return int(
+            (Decimal(allocated_buy_krw_amount) * sell_exchange_rate / buy_exchange_rate)
+            .to_integral_value(rounding=ROUND_CEILING)
+        )
+
+    return int(
+        (foreign_amount * sell_exchange_rate / get_quote_unit(currency_code))
+        .to_integral_value(rounding=ROUND_CEILING)
+    )
 
 
 def calculate_allocated_buy_krw_amount(source_lot: FxBuyLot, allocated_usd_amount: Decimal) -> int:
-    """부분 매도 시 해당 USD에 대응하는 매수 원화 원가를 올림 계산합니다."""
+    """부분 매도 시 해당 외화에 대응하는 매수 원화 원가를 올림 계산합니다."""
 
     if allocated_usd_amount == source_lot.usd_amount:
         return source_lot.buy_krw_amount
 
-    return int((allocated_usd_amount * source_lot.buy_exchange_rate).to_integral_value(rounding=ROUND_CEILING))
+    return int(
+        (allocated_usd_amount * source_lot.buy_exchange_rate / get_quote_unit(source_lot.currency_code))
+        .to_integral_value(rounding=ROUND_CEILING)
+    )
 
 
 def decimal_to_payload(value: Decimal) -> str:
@@ -195,20 +241,23 @@ def create_buy_lot(
     db: Session,
     *,
     current_user: User,
+    currency_code: str,
     buy_date,
     buy_krw_amount: int,
     buy_exchange_rate: Decimal,
 ) -> BuyLotRead:
-    """FX 매수 로트를 생성하고 원화 금액을 USD 보유액으로 환산해 저장합니다."""
+    """FX 매수 로트를 생성하고 원화 금액을 외화 보유액으로 환산해 저장합니다."""
 
+    normalized_currency = normalize_currency_code(currency_code)
     normalized_rate = quantize_numeric(buy_exchange_rate)
     buy_lot = FxBuyLot(
         user_id=current_user.user_id,
+        currency_code=normalized_currency,
         lot_status=OPEN,
         buy_date=buy_date,
         buy_krw_amount=buy_krw_amount,
         buy_exchange_rate=normalized_rate,
-        usd_amount=calculate_usd_amount(buy_krw_amount, normalized_rate),
+        usd_amount=calculate_foreign_amount(buy_krw_amount, normalized_rate, normalized_currency),
         is_active=True,
         is_deleted=False,
         created_by=current_user.user_id,
@@ -227,6 +276,7 @@ def update_buy_lot(
     *,
     current_user: User,
     buy_lot_id: int,
+    currency_code: str,
     buy_date,
     buy_krw_amount: int,
     buy_exchange_rate: Decimal,
@@ -246,11 +296,15 @@ def update_buy_lot(
     if buy_lot.lot_status != OPEN or not buy_lot.is_active:
         raise ValueError("Only active open buy lots can be updated")
 
+    normalized_currency = normalize_currency_code(currency_code)
+    if buy_lot.currency_code != normalized_currency:
+        raise ValueError("Buy lot currency cannot be changed")
+
     normalized_rate = quantize_numeric(buy_exchange_rate)
     buy_lot.buy_date = buy_date
     buy_lot.buy_krw_amount = buy_krw_amount
     buy_lot.buy_exchange_rate = normalized_rate
-    buy_lot.usd_amount = calculate_usd_amount(buy_krw_amount, normalized_rate)
+    buy_lot.usd_amount = calculate_foreign_amount(buy_krw_amount, normalized_rate, normalized_currency)
     buy_lot.updated_by = current_user.user_id
     buy_lot.lock_version += 1
     db.flush()
@@ -342,12 +396,15 @@ def list_buy_lots(
     is_active: bool | None,
     sort_by: str | None,
     sort_order: str | None,
+    currency_code: str,
 ) -> BuyLotListResponse:
     """매수 로트 목록에 상태/활성 필터, 정렬, 페이지네이션을 적용합니다."""
 
-    query = _buy_lots_query(current_user.user_id)
+    normalized_currency = normalize_currency_code(currency_code)
+    query = _buy_lots_query(current_user.user_id).where(FxBuyLot.currency_code == normalized_currency)
     count_query = select(func.count()).select_from(FxBuyLot).where(
         FxBuyLot.user_id == current_user.user_id,
+        FxBuyLot.currency_code == normalized_currency,
         FxBuyLot.is_deleted.is_(False),
     )
 
@@ -398,6 +455,8 @@ def to_buy_lot_read(buy_lot: FxBuyLot) -> BuyLotRead:
 
     return BuyLotRead(
         buyLotId=buy_lot.buy_lot_id,
+        currencyCode=buy_lot.currency_code,
+        quoteUnit=get_quote_unit(buy_lot.currency_code),
         buyDate=buy_lot.buy_date,
         buyKrwAmount=buy_lot.buy_krw_amount,
         buyExchangeRate=buy_lot.buy_exchange_rate,
@@ -444,15 +503,19 @@ def is_visible_for_period(row: LedgerRowRead, *, period: str, latest_date: date 
     return row_date >= subtract_years(latest_date, years)
 
 
-def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerResponse:
+def list_ledger(db: Session, *, current_user: User, period: str, currency_code: str) -> LedgerResponse:
     """open 로트와 매도 allocation을 합쳐 FX 원장 행, 누적수익, 기간 요약을 만듭니다."""
 
     if period not in {"all", "1y", "3y", "5y", "latest"}:
         raise ValueError("Invalid ledger period")
 
+    normalized_currency = normalize_currency_code(currency_code)
+    quote_unit = get_quote_unit(normalized_currency)
     open_rows = [
         LedgerSourceRow(
             buy_date=lot.buy_date,
+            currency_code=lot.currency_code,
+            quote_unit=get_quote_unit(lot.currency_code),
             buy_krw_amount=lot.buy_krw_amount,
             buy_exchange_rate=lot.buy_exchange_rate,
             usd_amount=lot.usd_amount,
@@ -470,6 +533,7 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
         for lot in db.scalars(
             select(FxBuyLot).where(
                 FxBuyLot.user_id == current_user.user_id,
+                FxBuyLot.currency_code == normalized_currency,
                 FxBuyLot.lot_status == OPEN,
                 FxBuyLot.is_active.is_(True),
                 FxBuyLot.is_deleted.is_(False),
@@ -481,6 +545,8 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
     sold_rows = [
         LedgerSourceRow(
             buy_date=lot.buy_date,
+            currency_code=lot.currency_code,
+            quote_unit=get_quote_unit(lot.currency_code),
             buy_krw_amount=allocation.allocated_buy_krw_amount,
             buy_exchange_rate=lot.buy_exchange_rate,
             usd_amount=allocation.allocated_usd_amount,
@@ -506,6 +572,7 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
             .join(closed_lot, closed_lot.buy_lot_id == FxLotAllocation.closed_buy_lot_id)
             .where(
                 FxSellTransaction.user_id == current_user.user_id,
+                FxSellTransaction.currency_code == normalized_currency,
                 FxSellTransaction.transaction_status == COMPLETED,
                 FxSellTransaction.is_deleted.is_(False),
                 closed_lot.is_deleted.is_(False),
@@ -537,6 +604,8 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
         items.append(
             LedgerRowRead(
                 buyDate=row.buy_date,
+                currencyCode=row.currency_code,
+                quoteUnit=row.quote_unit,
                 buyKrwAmount=row.buy_krw_amount,
                 buyExchangeRate=row.buy_exchange_rate,
                 usdAmount=row.usd_amount,
@@ -565,6 +634,7 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
     total_real_profit = db.scalar(
         select(func.coalesce(func.sum(FxSellTransaction.total_real_profit_krw), 0)).where(
             FxSellTransaction.user_id == current_user.user_id,
+            FxSellTransaction.currency_code == normalized_currency,
             FxSellTransaction.transaction_status == COMPLETED,
             FxSellTransaction.is_deleted.is_(False),
         )
@@ -572,6 +642,7 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
     total_sell_transaction_count = db.scalar(
         select(func.count()).select_from(FxSellTransaction).where(
             FxSellTransaction.user_id == current_user.user_id,
+            FxSellTransaction.currency_code == normalized_currency,
             FxSellTransaction.transaction_status == COMPLETED,
             FxSellTransaction.is_deleted.is_(False),
         )
@@ -583,6 +654,8 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
             totalRows=len(items),
             visibleRows=len(visible_items),
             openLotCount=len(open_rows),
+            currencyCode=normalized_currency,
+            quoteUnit=quote_unit,
             totalOpenUsdAmount=total_open_usd_amount,
             soldAllocationCount=len(sold_rows),
             totalSellTransactionCount=total_sell_transaction_count,
@@ -595,13 +668,20 @@ def list_ledger(db: Session, *, current_user: User, period: str) -> LedgerRespon
     )
 
 
-def get_source_lots_for_strategy(db: Session, *, user_id: int, strategy: str) -> list[FxBuyLot]:
+def get_source_lots_for_strategy(
+    db: Session,
+    *,
+    user_id: int,
+    currency_code: str,
+    strategy: str,
+) -> list[FxBuyLot]:
     """자동 차감 전략에 맞는 순서로 open 매수 로트를 잠금 조회합니다."""
 
     query = (
         select(FxBuyLot)
         .where(
             FxBuyLot.user_id == user_id,
+            FxBuyLot.currency_code == currency_code,
             FxBuyLot.is_deleted.is_(False),
             FxBuyLot.is_active.is_(True),
             FxBuyLot.lot_status == OPEN,
@@ -641,9 +721,11 @@ def build_allocation_plans(
         allocated_usd = quantize_numeric(allocated_usd)
         allocated_buy_krw = calculate_allocated_buy_krw_amount(source_lot, allocated_usd)
         allocated_sell_krw = calculate_sell_krw_amount(
+            allocated_usd,
             allocated_buy_krw,
             normalized_sell_rate,
             source_lot.buy_exchange_rate,
+            source_lot.currency_code,
         )
         real_profit = allocated_sell_krw - allocated_buy_krw
         remaining_usd = quantize_numeric(source_lot.usd_amount - allocated_usd)
@@ -675,6 +757,7 @@ def get_manual_source_lots(
     db: Session,
     *,
     current_user: User,
+    currency_code: str,
     manual_allocations: list[tuple[int, Decimal]],
 ) -> list[tuple[FxBuyLot, Decimal]]:
     """수동 allocation 요청의 로트가 모두 현재 사용자 소유 open 로트인지 검증합니다."""
@@ -692,6 +775,7 @@ def get_manual_source_lots(
             .where(
                 FxBuyLot.buy_lot_id.in_(buy_lot_ids),
                 FxBuyLot.user_id == current_user.user_id,
+                FxBuyLot.currency_code == currency_code,
                 FxBuyLot.is_deleted.is_(False),
                 FxBuyLot.is_active.is_(True),
                 FxBuyLot.lot_status == OPEN,
@@ -729,9 +813,11 @@ def build_manual_allocation_plans(
 
         allocated_buy_krw = calculate_allocated_buy_krw_amount(source_lot, allocated_usd)
         allocated_sell_krw = calculate_sell_krw_amount(
+            allocated_usd,
             allocated_buy_krw,
             normalized_sell_rate,
             source_lot.buy_exchange_rate,
+            source_lot.currency_code,
         )
         real_profit = allocated_sell_krw - allocated_buy_krw
         remaining_usd = quantize_numeric(source_lot.usd_amount - allocated_usd)
@@ -759,6 +845,7 @@ def create_sell_transaction(
     db: Session,
     *,
     current_user: User,
+    currency_code: str,
     sell_date: date,
     sell_usd_amount: Decimal,
     sell_exchange_rate: Decimal,
@@ -768,12 +855,14 @@ def create_sell_transaction(
 ) -> SellTransactionRead:
     """매도 거래를 생성하고 원본 로트를 sold/remaining 로트로 분리해 allocation을 기록합니다."""
 
+    normalized_currency = normalize_currency_code(currency_code)
     normalized_sell_usd = quantize_numeric(sell_usd_amount)
     normalized_sell_rate = quantize_numeric(sell_exchange_rate)
     if allocation_strategy == "manual":
         source_lots = get_manual_source_lots(
             db,
             current_user=current_user,
+            currency_code=normalized_currency,
             manual_allocations=manual_allocations or [],
         )
         plans = build_manual_allocation_plans(
@@ -785,6 +874,7 @@ def create_sell_transaction(
         source_lots = get_source_lots_for_strategy(
             db,
             user_id=current_user.user_id,
+            currency_code=normalized_currency,
             strategy=allocation_strategy,
         )
         plans = build_allocation_plans(
@@ -795,6 +885,7 @@ def create_sell_transaction(
 
     transaction = FxSellTransaction(
         user_id=current_user.user_id,
+        currency_code=normalized_currency,
         sell_date=sell_date,
         sell_usd_amount=normalized_sell_usd,
         sell_exchange_rate=normalized_sell_rate,
@@ -818,6 +909,7 @@ def create_sell_transaction(
         sell_transaction_id=transaction.sell_transaction_id,
         event_payload={
             "sellDate": sell_date.isoformat(),
+            "currencyCode": normalized_currency,
             "sellUsdAmount": decimal_to_payload(normalized_sell_usd),
             "sellExchangeRate": decimal_to_payload(normalized_sell_rate),
             "allocationStrategy": allocation_strategy,
@@ -835,6 +927,7 @@ def create_sell_transaction(
 
         sold_lot = FxBuyLot(
             user_id=current_user.user_id,
+            currency_code=normalized_currency,
             parent_buy_lot_id=plan.source_lot.buy_lot_id,
             root_buy_lot_id=root_buy_lot_id,
             lot_status=SOLD,
@@ -854,6 +947,7 @@ def create_sell_transaction(
         if plan.remaining_usd_amount >= MIN_USD_AMOUNT and plan.remaining_buy_krw_amount > 0:
             remaining_lot = FxBuyLot(
                 user_id=current_user.user_id,
+                currency_code=normalized_currency,
                 parent_buy_lot_id=plan.source_lot.buy_lot_id,
                 root_buy_lot_id=root_buy_lot_id,
                 lot_status=OPEN,
@@ -897,6 +991,7 @@ def create_sell_transaction(
             remaining_buy_lot_id=remaining_lot_id,
             event_payload={
                 "allocatedUsdAmount": decimal_to_payload(plan.allocated_usd_amount),
+                "currencyCode": normalized_currency,
                 "buyRate": decimal_to_payload(plan.source_lot.buy_exchange_rate),
                 "sellRate": decimal_to_payload(normalized_sell_rate),
                 "allocatedBuyKrwAmount": plan.allocated_buy_krw_amount,
@@ -920,15 +1015,19 @@ def list_sell_transactions(
     size: int,
     sort_by: str | None,
     sort_order: str | None,
+    currency_code: str,
 ) -> SellTransactionListResponse:
     """현재 사용자의 매도 거래 목록에 정렬과 페이지네이션을 적용합니다."""
 
+    normalized_currency = normalize_currency_code(currency_code)
     query = select(FxSellTransaction).where(
         FxSellTransaction.user_id == current_user.user_id,
+        FxSellTransaction.currency_code == normalized_currency,
         FxSellTransaction.is_deleted.is_(False),
     )
     count_query = select(func.count()).select_from(FxSellTransaction).where(
         FxSellTransaction.user_id == current_user.user_id,
+        FxSellTransaction.currency_code == normalized_currency,
         FxSellTransaction.is_deleted.is_(False),
     )
     query = apply_sort(
@@ -1088,6 +1187,7 @@ def cancel_sell_transaction(
 
         restored_lot = FxBuyLot(
             user_id=current_user.user_id,
+            currency_code=source_lot.currency_code,
             parent_buy_lot_id=source_lot.buy_lot_id,
             root_buy_lot_id=root_buy_lot_id,
             lot_status=OPEN,
@@ -1136,13 +1236,21 @@ def list_lot_events(
     size: int,
     root_buy_lot_id: int | None,
     sell_transaction_id: int | None,
+    currency_code: str,
 ) -> LotEventListResponse:
     """현재 사용자의 FX 로트 이벤트 로그를 루트 로트나 매도 거래 기준으로 필터링합니다."""
 
+    normalized_currency = normalize_currency_code(currency_code)
     query = select(FxLotEvent).where(FxLotEvent.user_id == current_user.user_id)
     count_query = select(func.count()).select_from(FxLotEvent).where(
         FxLotEvent.user_id == current_user.user_id
     )
+    currency_sell_transaction_ids = select(FxSellTransaction.sell_transaction_id).where(
+        FxSellTransaction.user_id == current_user.user_id,
+        FxSellTransaction.currency_code == normalized_currency,
+    )
+    query = query.where(FxLotEvent.sell_transaction_id.in_(currency_sell_transaction_ids))
+    count_query = count_query.where(FxLotEvent.sell_transaction_id.in_(currency_sell_transaction_ids))
     if root_buy_lot_id is not None:
         query = query.where(FxLotEvent.root_buy_lot_id == root_buy_lot_id)
         count_query = count_query.where(FxLotEvent.root_buy_lot_id == root_buy_lot_id)
@@ -1188,6 +1296,8 @@ def to_sell_transaction_read(
 
     return SellTransactionRead(
         sellTransactionId=transaction.sell_transaction_id,
+        currencyCode=transaction.currency_code,
+        quoteUnit=get_quote_unit(transaction.currency_code),
         sellDate=transaction.sell_date,
         sellUsdAmount=transaction.sell_usd_amount,
         sellExchangeRate=transaction.sell_exchange_rate,
@@ -1208,6 +1318,8 @@ def to_sell_transaction_list_item(transaction: FxSellTransaction) -> SellTransac
 
     return SellTransactionListItem(
         sellTransactionId=transaction.sell_transaction_id,
+        currencyCode=transaction.currency_code,
+        quoteUnit=get_quote_unit(transaction.currency_code),
         sellDate=transaction.sell_date,
         sellUsdAmount=transaction.sell_usd_amount,
         sellExchangeRate=transaction.sell_exchange_rate,

@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AuthGuard } from "../../../../../src/components/auth-guard";
 import { DateSegmentInput } from "../../../../../src/components/date-segment-input";
-import { getBuyLot, updateBuyLot, type BuyLot } from "../../../../../src/lib/fx-api";
+import { getBuyLot, getCurrencyOption, updateBuyLot, type BuyLot, type CurrencyCode } from "../../../../../src/lib/fx-api";
 
 function EditBuyLotContent() {
   /** 수정 가능한 open 매수 로트를 불러와 편집 폼에 채웁니다. */
@@ -13,6 +13,7 @@ function EditBuyLotContent() {
   const router = useRouter();
   const buyLotId = Number(params.buyLotId);
   const [buyLot, setBuyLot] = useState<BuyLot | null>(null);
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("USD");
   const [buyDate, setBuyDate] = useState("");
   const [buyKrwAmount, setBuyKrwAmount] = useState("");
   const [buyExchangeRate, setBuyExchangeRate] = useState("");
@@ -28,6 +29,7 @@ function EditBuyLotContent() {
         }
 
         setBuyLot(loaded);
+        setCurrencyCode(loaded.currencyCode);
         setBuyDate(loaded.buyDate);
         setBuyKrwAmount(String(loaded.buyKrwAmount));
         setBuyExchangeRate(loaded.buyExchangeRate);
@@ -46,6 +48,7 @@ function EditBuyLotContent() {
 
     try {
       await updateBuyLot(buyLotId, {
+        currencyCode,
         buyDate,
         buyKrwAmount: Number(buyKrwAmount),
         buyExchangeRate
@@ -57,6 +60,8 @@ function EditBuyLotContent() {
       setIsSubmitting(false);
     }
   }
+
+  const selectedCurrency = getCurrencyOption(currencyCode);
 
   if (error && !buyLot) {
     return (
@@ -75,6 +80,10 @@ function EditBuyLotContent() {
       <p className="eyebrow">FX Ledger</p>
       <h1>매수 로트 수정</h1>
       <form className="post-form" onSubmit={handleSubmit}>
+        <label>
+          통화
+          <input disabled value={selectedCurrency.label} />
+        </label>
         <DateSegmentInput label="매수일" required value={buyDate} onChange={setBuyDate} />
         <label>
           매수원화환전금액
@@ -87,7 +96,7 @@ function EditBuyLotContent() {
           />
         </label>
         <label>
-          매수적용환율
+          매수적용환율 ({selectedCurrency.amountLabel})
           <input
             min="0.000001"
             required

@@ -64,6 +64,17 @@ export function formatUsdCurrency(value: string | number) {
   }).format(Number(value))}`;
 }
 
+export function formatForeignCurrency(value: string | number, currencyCode: string) {
+  /** USD/JPY 같은 외화 금액을 통화 기호와 적절한 소수 자릿수로 표시합니다. */
+
+  const isJpy = currencyCode === "JPY";
+  const symbol = isJpy ? "¥" : "$";
+  return `${symbol}${new Intl.NumberFormat("ko-KR", {
+    minimumFractionDigits: isJpy ? 0 : 2,
+    maximumFractionDigits: isJpy ? 0 : 2
+  }).format(Number(value))}`;
+}
+
 export function formatKrwRate(value: string | number) {
   /** 환율을 원화 기호와 소수점 둘째 자리로 표시합니다. */
 

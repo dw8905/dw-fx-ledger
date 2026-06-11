@@ -95,6 +95,68 @@ def test_buy_lot_create_list_detail_and_ownership() -> None:
     assert other_detail_response.status_code == 404
 
 
+def test_jpy_buy_sell_and_ledger_are_separated_from_usd() -> None:
+    require_fx_lot_events_table()
+
+    client = TestClient(app)
+    register_user(client, uuid4().hex[:12])
+
+    jpy_buy_response = client.post(
+        "/fx/buy-lots",
+        json={
+            "currencyCode": "JPY",
+            "buyDate": "2023-06-05",
+            "buyKrwAmount": 4999995,
+            "buyExchangeRate": "934.68",
+        },
+    )
+    assert jpy_buy_response.status_code == 201, jpy_buy_response.text
+    jpy_buy = jpy_buy_response.json()
+    assert jpy_buy["currencyCode"] == "JPY"
+    assert jpy_buy["quoteUnit"] == "100"
+    assert jpy_buy["usdAmount"] == "534941.905251"
+
+    default_usd_sell_response = client.post(
+        "/fx/sell-transactions",
+        json={
+            "sellDate": "2024-12-03",
+            "sellUsdAmount": "100000.00",
+            "sellExchangeRate": "954.65",
+            "allocationStrategy": "highest_rate_first",
+        },
+    )
+    assert default_usd_sell_response.status_code == 400
+
+    jpy_sell_response = client.post(
+        "/fx/sell-transactions",
+        json={
+            "currencyCode": "JPY",
+            "sellDate": "2024-12-03",
+            "sellUsdAmount": "100000.00",
+            "sellExchangeRate": "954.65",
+            "allocationStrategy": "highest_rate_first",
+        },
+    )
+    assert jpy_sell_response.status_code == 201, jpy_sell_response.text
+    jpy_sell = jpy_sell_response.json()
+    assert jpy_sell["currencyCode"] == "JPY"
+    assert jpy_sell["totalBuyKrwAmount"] == 934680
+    assert jpy_sell["totalSellKrwAmount"] == 954650
+    assert jpy_sell["totalRealProfitKrw"] == 19970
+
+    usd_ledger_response = client.get("/fx/ledger?period=all")
+    assert usd_ledger_response.status_code == 200, usd_ledger_response.text
+    assert usd_ledger_response.json()["summary"]["currencyCode"] == "USD"
+    assert usd_ledger_response.json()["summary"]["totalRows"] == 0
+
+    jpy_ledger_response = client.get("/fx/ledger?period=all&currencyCode=JPY")
+    assert jpy_ledger_response.status_code == 200, jpy_ledger_response.text
+    jpy_ledger = jpy_ledger_response.json()
+    assert jpy_ledger["summary"]["currencyCode"] == "JPY"
+    assert jpy_ledger["summary"]["totalOpenUsdAmount"] == "434941.905251"
+    assert jpy_ledger["summary"]["finalCumulativeProfitKrw"] == 19970
+
+
 def test_buy_lot_update_open_only() -> None:
     owner_client = TestClient(app)
     other_client = TestClient(app)

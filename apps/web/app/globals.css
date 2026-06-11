@@ -895,6 +895,39 @@ p {
   font-weight: 800;
 }
 
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 0;
+}
+
+.chart-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.legend-total {
+  background: #20352a;
+}
+
+.legend-usd {
+  background: #2e6140;
+}
+
+.legend-jpy {
+  background: #8b5e00;
+}
+
 .chart-heading strong {
   color: #1f7a3b;
   font-size: 18px;

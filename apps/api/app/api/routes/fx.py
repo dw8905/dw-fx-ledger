@@ -51,6 +51,7 @@ def create_buy_lot_route(
     buy_lot = create_buy_lot(
         db,
         current_user=current_user,
+        currency_code=payload.currencyCode,
         buy_date=payload.buyDate,
         buy_krw_amount=payload.buyKrwAmount,
         buy_exchange_rate=payload.buyExchangeRate,
@@ -69,6 +70,7 @@ def list_buy_lots_route(
     is_active: bool | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    currency_code: Annotated[str, Query(alias="currencyCode")] = "USD",
 ) -> BuyLotListResponse:
     """매수 로트 목록을 상태/활성/정렬/페이지 조건에 맞춰 반환합니다."""
 
@@ -82,6 +84,7 @@ def list_buy_lots_route(
             is_active=is_active,
             sort_by=sort_by,
             sort_order=sort_order,
+            currency_code=currency_code,
         )
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
@@ -116,6 +119,7 @@ def update_buy_lot_route(
             db,
             current_user=current_user,
             buy_lot_id=buy_lot_id,
+            currency_code=payload.currencyCode,
             buy_date=payload.buyDate,
             buy_krw_amount=payload.buyKrwAmount,
             buy_exchange_rate=payload.buyExchangeRate,
@@ -171,6 +175,7 @@ def create_sell_transaction_route(
         transaction = create_sell_transaction(
             db,
             current_user=current_user,
+            currency_code=payload.currencyCode,
             sell_date=payload.sellDate,
             sell_usd_amount=payload.sellUsdAmount,
             sell_exchange_rate=payload.sellExchangeRate,
@@ -231,6 +236,7 @@ def list_lot_events_route(
     size: Annotated[int, Query(ge=1, le=100)] = 10,
     root_buy_lot_id: int | None = None,
     sell_transaction_id: int | None = None,
+    currency_code: Annotated[str, Query(alias="currencyCode")] = "USD",
 ) -> LotEventListResponse:
     """현재 사용자의 FX 로트 이벤트 로그를 페이지 단위로 반환합니다."""
 
@@ -241,6 +247,7 @@ def list_lot_events_route(
         size=size,
         root_buy_lot_id=root_buy_lot_id,
         sell_transaction_id=sell_transaction_id,
+        currency_code=currency_code,
     )
 
 
@@ -252,6 +259,7 @@ def list_sell_transactions_route(
     size: Annotated[int, Query(ge=1, le=100)] = 10,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    currency_code: Annotated[str, Query(alias="currencyCode")] = "USD",
 ) -> SellTransactionListResponse:
     """매도 거래 목록을 정렬과 페이지 조건에 맞춰 반환합니다."""
 
@@ -263,6 +271,7 @@ def list_sell_transactions_route(
             size=size,
             sort_by=sort_by,
             sort_order=sort_order,
+            currency_code=currency_code,
         )
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
@@ -273,11 +282,12 @@ def list_ledger_route(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     period: str = "all",
+    currency_code: Annotated[str, Query(alias="currencyCode")] = "USD",
 ) -> LedgerResponse:
     """현재 사용자의 FX 원장을 선택 기간 기준으로 반환합니다."""
 
     try:
-        return list_ledger(db, current_user=current_user, period=period)
+        return list_ledger(db, current_user=current_user, period=period, currency_code=currency_code)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 

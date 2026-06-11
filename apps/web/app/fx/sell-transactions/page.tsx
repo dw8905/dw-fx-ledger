@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import { SortableHeader, type SortOrder } from "../../../src/components/sortable-header";
-import { formatDate, formatDecimal, formatKrw } from "../../../src/lib/format";
+import { formatDate, formatDecimal, formatForeignCurrency, formatKrw } from "../../../src/lib/format";
 import {
+  currencyOptions,
   formatAllocationStrategy,
+  getCurrencyOption,
   listSellTransactions,
+  type CurrencyCode,
   type SellTransactionListResponse
 } from "../../../src/lib/fx-api";
 
@@ -16,6 +19,7 @@ function SellTransactionsContent() {
 
   const [data, setData] = useState<SellTransactionListResponse | null>(null);
   const [error, setError] = useState("");
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("USD");
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
 
@@ -38,12 +42,14 @@ function SellTransactionsContent() {
   }
 
   useEffect(() => {
-    listSellTransactions(1, 10, sortBy, sortOrder)
+    listSellTransactions(1, 10, sortBy, sortOrder, currencyCode)
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "매도 거래를 불러오지 못했습니다.")
       );
-  }, [sortBy, sortOrder]);
+  }, [sortBy, sortOrder, currencyCode]);
+
+  const selectedCurrency = getCurrencyOption(currencyCode);
 
   return (
     <main className="content-page">
@@ -55,6 +61,18 @@ function SellTransactionsContent() {
         <Link className="primary-link" href="/fx/sell-transactions/new">
           매도 등록
         </Link>
+      </section>
+      <section className="filter-bar">
+        <label>
+          통화
+          <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value as CurrencyCode)}>
+            {currencyOptions.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </section>
 
       {error ? <p className="form-error">{error}</p> : null}
@@ -70,7 +88,7 @@ function SellTransactionsContent() {
                   <SortableHeader label="매도일" field="sell_date" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                 </th>
                 <th>
-                  <SortableHeader label="매도 USD" field="sell_usd_amount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                  <SortableHeader label={`매도 ${selectedCurrency.amountLabel}`} field="sell_usd_amount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                 </th>
                 <th>
                   <SortableHeader label="매도환율" field="sell_exchange_rate" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
@@ -101,7 +119,7 @@ function SellTransactionsContent() {
                       </Link>
                     </td>
                     <td>{formatDate(transaction.sellDate)}</td>
-                    <td>{formatDecimal(transaction.sellUsdAmount)} USD</td>
+                    <td>{formatForeignCurrency(transaction.sellUsdAmount, transaction.currencyCode)}</td>
                     <td>{formatDecimal(transaction.sellExchangeRate)}</td>
                     <td>{formatAllocationStrategy(transaction.allocationStrategy)}</td>
                     <td>{transaction.transactionStatus}</td>

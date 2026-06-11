@@ -4,18 +4,22 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AuthGuard } from "../../../../src/components/auth-guard";
 import { DateSegmentInput } from "../../../../src/components/date-segment-input";
-import { formatDate, formatDecimal, formatKrw } from "../../../../src/lib/format";
+import { formatDate, formatDecimal, formatForeignCurrency, formatKrw } from "../../../../src/lib/format";
 import {
   createSellTransaction,
+  currencyOptions,
   formatAllocationStrategy,
+  getCurrencyOption,
   listOpenBuyLotsForSelection,
-  type BuyLot
+  type BuyLot,
+  type CurrencyCode
 } from "../../../../src/lib/fx-api";
 
 function NewSellTransactionContent() {
   /** 매도 등록 폼과 수동 allocation 선택 상태를 함께 관리합니다. */
 
   const router = useRouter();
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("USD");
   const [sellDate, setSellDate] = useState("");
   const [sellUsdAmount, setSellUsdAmount] = useState("");
   const [sellExchangeRate, setSellExchangeRate] = useState("");
@@ -42,15 +46,20 @@ function NewSellTransactionContent() {
       return;
     }
 
-    listOpenBuyLotsForSelection()
+    listOpenBuyLotsForSelection(currencyCode)
       .then((data) => setBuyLots(data.items))
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "매수 로트를 불러오지 못했습니다.")
       );
-  }, [allocationStrategy, buyLots.length]);
+  }, [allocationStrategy, buyLots.length, currencyCode]);
+
+  useEffect(() => {
+    setBuyLots([]);
+    setManualAmounts({});
+  }, [currencyCode]);
 
   function toggleManualLot(lot: BuyLot, checked: boolean) {
-    /** 수동 차감 로트를 선택/해제하고 선택 시 남은 필요 USD만큼 기본값을 채웁니다. */
+    /** 수동 차감 로트를 선택/해제하고 선택 시 남은 필요 외화만큼 기본값을 채웁니다. */
 
     setManualAmounts((current) => {
       const next = { ...current };
@@ -77,7 +86,7 @@ function NewSellTransactionContent() {
     setError("");
 
     if (allocationStrategy === "manual" && Math.abs(manualDifference) > 0.000001) {
-      setError("직접 선택한 USD 합계가 매도 USD 금액과 같아야 합니다.");
+      setError(`직접 선택한 ${selectedCurrency.amountLabel} 합계가 매도 ${selectedCurrency.amountLabel} 금액과 같아야 합니다.`);
       return;
     }
 
@@ -85,6 +94,7 @@ function NewSellTransactionContent() {
 
     try {
       await createSellTransaction({
+        currencyCode,
         sellDate,
         sellUsdAmount,
         sellExchangeRate,
@@ -106,14 +116,26 @@ function NewSellTransactionContent() {
     }
   }
 
+  const selectedCurrency = getCurrencyOption(currencyCode);
+
   return (
     <main className="content-page narrow">
       <p className="eyebrow">FX Ledger</p>
       <h1>매도 등록</h1>
       <form className="post-form" onSubmit={handleSubmit}>
+        <label>
+          통화
+          <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value as CurrencyCode)}>
+            {currencyOptions.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <DateSegmentInput label="매도일" required value={sellDate} onChange={setSellDate} />
         <label>
-          매도 USD 금액
+          매도 {selectedCurrency.amountLabel} 금액
           <input
             min="0.000001"
             required
@@ -149,9 +171,9 @@ function NewSellTransactionContent() {
         {allocationStrategy === "manual" ? (
           <section className="manual-allocation-panel">
             <div className="manual-allocation-summary">
-              <strong>선택 합계 {formatDecimal(String(selectedTotalUsd || 0))} USD</strong>
+              <strong>선택 합계 {formatForeignCurrency(String(selectedTotalUsd || 0), currencyCode)}</strong>
               <span>
-                차이 {formatDecimal(String(manualDifference || 0))} USD
+                차이 {formatForeignCurrency(String(manualDifference || 0), currencyCode)}
               </span>
             </div>
             <div className="table-wrap">
@@ -160,10 +182,10 @@ function NewSellTransactionContent() {
                   <tr>
                     <th>선택</th>
                     <th>매수일</th>
-                    <th>잔여 USD</th>
+                    <th>잔여 {selectedCurrency.amountLabel}</th>
                     <th>매수환율</th>
                     <th>원화</th>
-                    <th>차감 USD</th>
+                    <th>차감 {selectedCurrency.amountLabel}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,7 +205,7 @@ function NewSellTransactionContent() {
                           />
                         </td>
                         <td>{formatDate(lot.buyDate)}</td>
-                        <td>{formatDecimal(lot.usdAmount)} USD</td>
+                        <td>{formatForeignCurrency(lot.usdAmount, lot.currencyCode)}</td>
                         <td>{formatDecimal(lot.buyExchangeRate)}</td>
                         <td>{formatKrw(lot.buyKrwAmount)} KRW</td>
                         <td>

@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import { Pagination } from "../../../src/components/pagination";
-import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../src/lib/format";
+import { formatDate, formatDateTime, formatDecimal, formatForeignCurrency, formatKrw } from "../../../src/lib/format";
 import {
+  currencyOptions,
+  getCurrencyOption,
   listLotEvents,
   listSellTransactions,
+  type CurrencyCode,
   type LotEventListResponse,
   type SellTransactionListResponse
 } from "../../../src/lib/fx-api";
@@ -17,6 +20,7 @@ function DevLabContent() {
 
   const [transactions, setTransactions] = useState<SellTransactionListResponse | null>(null);
   const [events, setEvents] = useState<LotEventListResponse | null>(null);
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("USD");
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionSize, setTransactionSize] = useState(10);
   const [eventPage, setEventPage] = useState(1);
@@ -25,21 +29,23 @@ function DevLabContent() {
 
   useEffect(() => {
     setError("");
-    listSellTransactions(transactionPage, transactionSize)
+    listSellTransactions(transactionPage, transactionSize, null, null, currencyCode)
       .then(setTransactions)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "매도 거래를 불러오지 못했습니다.")
       );
-  }, [transactionPage, transactionSize]);
+  }, [currencyCode, transactionPage, transactionSize]);
 
   useEffect(() => {
     setError("");
-    listLotEvents(eventPage, eventSize)
+    listLotEvents(eventPage, eventSize, currencyCode)
       .then(setEvents)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "로트 이벤트를 불러오지 못했습니다.")
       );
-  }, [eventPage, eventSize]);
+  }, [currencyCode, eventPage, eventSize]);
+
+  const selectedCurrency = getCurrencyOption(currencyCode);
 
   return (
     <main className="content-page">
@@ -57,6 +63,25 @@ function DevLabContent() {
           </Link>
         </div>
       </section>
+      <section className="filter-bar">
+        <label>
+          통화
+          <select
+            value={currencyCode}
+            onChange={(event) => {
+              setCurrencyCode(event.target.value as CurrencyCode);
+              setTransactionPage(1);
+              setEventPage(1);
+            }}
+          >
+            {currencyOptions.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
       {error ? <p className="form-error">{error}</p> : null}
 
@@ -73,7 +98,7 @@ function DevLabContent() {
                     <th>번호</th>
                     <th>상태</th>
                     <th>매도일</th>
-                    <th>USD</th>
+                    <th>{selectedCurrency.amountLabel}</th>
                     <th>환율</th>
                     <th>실제손익</th>
                     <th>등록일</th>
@@ -89,7 +114,7 @@ function DevLabContent() {
                       </td>
                       <td>{transaction.transactionStatus}</td>
                       <td>{formatDate(transaction.sellDate)}</td>
-                      <td>{formatDecimal(transaction.sellUsdAmount)} USD</td>
+                      <td>{formatForeignCurrency(transaction.sellUsdAmount, transaction.currencyCode)}</td>
                       <td>{formatDecimal(transaction.sellExchangeRate)}</td>
                       <td>{formatKrw(transaction.totalRealProfitKrw)} KRW</td>
                       <td>{formatDateTime(transaction.createdAt)}</td>

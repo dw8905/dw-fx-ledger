@@ -14,8 +14,21 @@ import {
   YAxis
 } from "recharts";
 import { AuthGuard } from "../../../src/components/auth-guard";
-import { formatCompactDate, formatKrw, formatKrwCurrency, formatKrwRate } from "../../../src/lib/format";
-import { getLedger, type LedgerResponse, type LedgerRow } from "../../../src/lib/fx-api";
+import {
+  formatCompactDate,
+  formatForeignCurrency,
+  formatKrw,
+  formatKrwCurrency,
+  formatKrwRate
+} from "../../../src/lib/format";
+import {
+  currencyOptions,
+  getCurrencyOption,
+  getLedger,
+  type CurrencyCode,
+  type LedgerResponse,
+  type LedgerRow
+} from "../../../src/lib/fx-api";
 
 const periodOptions = [
   { value: "all", label: "전체" },
@@ -25,10 +38,12 @@ const periodOptions = [
   { value: "latest", label: "마지막 날짜만" }
 ];
 
-type LinePoint = {
-  /** 선형 차트에서 X축 라벨과 Y축 금액을 표현하는 점입니다. */
+type MultiLinePoint = {
+  /** 전체/USD/JPY 누적수익 선을 한 차트에 겹쳐 그리기 위한 점입니다. */
   label: string;
-  value: number;
+  total: number;
+  USD: number | null;
+  JPY: number | null;
 };
 
 type BarPoint = {
@@ -36,6 +51,13 @@ type BarPoint = {
   label: string;
   value: number;
 };
+
+type StatsCurrencyCode = CurrencyCode | "ALL";
+
+const statsCurrencyOptions: Array<{ code: StatsCurrencyCode; label: string }> = [
+  { code: "ALL", label: "전체" },
+  ...currencyOptions.map((option) => ({ code: option.code, label: option.label }))
+];
 
 function CurrencyTooltip({ active, label, payload }: {
   active?: boolean;
@@ -75,8 +97,32 @@ function CountTooltip({ active, label, payload }: {
   );
 }
 
-function CumulativeProfitChart({ points }: { points: LinePoint[] }) {
-  /** 매도 allocation 순서에 따른 누적수익 흐름을 선형 차트로 표시합니다. */
+function MultiCurrencyTooltip({ active, label, payload }: {
+  active?: boolean;
+  label?: string;
+  payload?: Array<{ color?: string; dataKey?: string; name?: string; value?: number | null }>;
+}) {
+  /** 누적수익 차트 hover 시 전체/USD/JPY 값을 함께 보여줍니다. */
+
+  const visiblePayload = payload?.filter((item) => item.value !== null && item.value !== undefined) ?? [];
+  if (!active || visiblePayload.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="chart-tooltip">
+      <span>{label}</span>
+      {visiblePayload.map((item) => (
+        <strong key={item.dataKey} style={{ color: item.color }}>
+          {item.name}: {formatKrwCurrency(Number(item.value ?? 0))}
+        </strong>
+      ))}
+    </div>
+  );
+}
+
+function CumulativeProfitChart({ points }: { points: MultiLinePoint[] }) {
+  /** 매도 allocation 순서에 따른 전체/USD/JPY 누적수익 흐름을 선형 차트로 표시합니다. */
 
   const lastPoint = points.at(-1);
 
@@ -85,9 +131,14 @@ function CumulativeProfitChart({ points }: { points: LinePoint[] }) {
       <div className="chart-heading">
         <div>
           <h2>누적수익 추이</h2>
-          <span>매도 allocation 기준 누적 흐름</span>
+          <span>전체 KRW 손익과 통화별 누적 흐름</span>
+          <div className="chart-legend">
+            <span><i className="legend-total" />전체</span>
+            <span><i className="legend-usd" />USD</span>
+            <span><i className="legend-jpy" />JPY</span>
+          </div>
         </div>
-        <strong>{lastPoint ? formatKrwCurrency(lastPoint.value) : "-"}</strong>
+        <strong>{lastPoint ? formatKrwCurrency(lastPoint.total) : "-"}</strong>
       </div>
       {points.length === 0 ? (
         <p className="empty-chart">매도 기록이 없습니다.</p>
@@ -103,14 +154,37 @@ function CumulativeProfitChart({ points }: { points: LinePoint[] }) {
                 tickLine={false}
                 width={82}
               />
-              <Tooltip content={<CurrencyTooltip />} />
+              <Tooltip content={<MultiCurrencyTooltip />} />
               <Line
                 activeDot={{ r: 5 }}
-                dataKey="value"
+                dataKey="total"
                 dot={{ r: 3 }}
                 isAnimationActive={false}
-                stroke="#2e6140"
+                name="전체"
+                stroke="#20352a"
                 strokeWidth={3}
+                type="monotone"
+              />
+              <Line
+                activeDot={{ r: 4 }}
+                connectNulls
+                dataKey="USD"
+                dot={{ r: 2 }}
+                isAnimationActive={false}
+                name="USD"
+                stroke="#2e6140"
+                strokeWidth={2}
+                type="monotone"
+              />
+              <Line
+                activeDot={{ r: 4 }}
+                connectNulls
+                dataKey="JPY"
+                dot={{ r: 2 }}
+                isAnimationActive={false}
+                name="JPY"
+                stroke="#8b5e00"
+                strokeWidth={2}
                 type="monotone"
               />
             </LineChart>
@@ -188,7 +262,7 @@ function monthlyProfit(rows: LedgerRow[]) {
   return Array.from(byMonth.entries()).map(([label, value]) => ({ label, value }));
 }
 
-function openLotRateBuckets(rows: LedgerRow[]) {
+function openLotRateBuckets(rows: LedgerRow[], currencyCode: CurrencyCode) {
   /** 아직 매도되지 않은 open 로트를 매수환율 50원 단위 구간으로 집계합니다. */
 
   const openRows = rows.filter((row) => !row.sellDate);
@@ -197,51 +271,116 @@ function openLotRateBuckets(rows: LedgerRow[]) {
   }
 
   const buckets = new Map<string, number>();
+  const bucketSize = currencyCode === "JPY" ? 10 : 50;
   for (const row of openRows) {
     const rate = Number(row.buyExchangeRate);
-    const start = Math.floor(rate / 50) * 50;
-    const label = `${formatKrwRate(start)}~${formatKrwRate(start + 49)}`;
+    const start = Math.floor(rate / bucketSize) * bucketSize;
+    const label = `${formatKrwRate(start)}~${formatKrwRate(start + bucketSize - 1)}`;
     buckets.set(label, (buckets.get(label) ?? 0) + 1);
   }
 
   return Array.from(buckets.entries()).map(([label, value]) => ({ label, value }));
 }
 
-function cumulativeProfitPoints(rows: LedgerRow[]) {
-  /** 매도 행의 누적수익 값을 차트 포인트로 변환합니다. */
+function openLotCountsByCurrency(ledgers: LedgerResponse[]) {
+  /** 전체 보기에서 환율 구간 대신 통화별 open 로트 수를 보여주기 위한 막대 데이터를 만듭니다. */
 
-  return rows
-    .filter((row) => row.sellDate)
-    .map((row) => ({
-      label: formatCompactDate(row.sellDate ?? row.buyDate),
-      value: row.cumulativeProfitKrw
-    }));
+  return ledgers.map((ledger) => ({
+    label: ledger.summary.currencyCode,
+    value: ledger.summary.openLotCount
+  }));
+}
+
+function cumulativeProfitPoints(ledgers: LedgerResponse[]) {
+  /** 통화별 원장 행을 날짜순으로 합쳐 전체/USD/JPY 누적수익 포인트로 변환합니다. */
+
+  const soldRows = ledgers
+    .flatMap((ledger) =>
+      ledger.items
+        .filter((row) => row.sellDate)
+        .map((row) => ({
+          row,
+          currencyCode: ledger.summary.currencyCode,
+          sellDate: row.sellDate ?? row.buyDate
+        }))
+    )
+    .sort(
+      (left, right) =>
+        left.sellDate.localeCompare(right.sellDate) ||
+        left.row.buyLotId - right.row.buyLotId ||
+        (left.row.lotAllocationId ?? 0) - (right.row.lotAllocationId ?? 0)
+    );
+
+  const currencyTotals: Record<CurrencyCode, number> = { USD: 0, JPY: 0 };
+  let total = 0;
+
+  return soldRows.map(({ currencyCode, row, sellDate }) => {
+    total += row.profitKrw;
+    currencyTotals[currencyCode] = row.cumulativeProfitKrw;
+    return {
+      label: formatCompactDate(sellDate),
+      total,
+      USD: currencyTotals.USD || null,
+      JPY: currencyTotals.JPY || null
+    };
+  });
 }
 
 function StatsContent() {
   /** FX 원장 데이터를 불러와 누적수익, 월별손익, open 로트 분포 차트로 변환합니다. */
 
   const [period, setPeriod] = useState("all");
-  const [data, setData] = useState<LedgerResponse | null>(null);
+  const [currencyCode, setCurrencyCode] = useState<StatsCurrencyCode>("ALL");
+  const [data, setData] = useState<LedgerResponse[] | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    getLedger(period)
+    const load =
+      currencyCode === "ALL"
+        ? Promise.all(currencyOptions.map((option) => getLedger(period, option.code)))
+        : getLedger(period, currencyCode).then((ledger) => [ledger]);
+
+    load
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "통계 데이터를 불러오지 못했습니다.")
       );
-  }, [period]);
+  }, [period, currencyCode]);
 
   const stats = useMemo(() => {
-    const rows = data?.items ?? [];
+    const ledgers = data ?? [];
+    const rows = ledgers.flatMap((ledger) => ledger.items);
+    const firstLedger = ledgers[0];
     return {
-      cumulative: cumulativeProfitPoints(rows),
+      cumulative: cumulativeProfitPoints(ledgers),
       monthly: monthlyProfit(rows),
-      openBuckets: openLotRateBuckets(rows)
+      openBuckets:
+        currencyCode === "ALL"
+          ? openLotCountsByCurrency(ledgers)
+          : openLotRateBuckets(firstLedger?.items ?? [], currencyCode)
+    };
+  }, [currencyCode, data]);
+
+  const summary = useMemo(() => {
+    const ledgers = data ?? [];
+    const latestLedgerDate = ledgers
+      .map((ledger) => ledger.summary.latestLedgerDate)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
+
+    return {
+      latestLedgerDate,
+      totalDisplayProfitKrw: ledgers.reduce((total, ledger) => total + ledger.summary.totalDisplayProfitKrw, 0),
+      finalCumulativeProfitKrw: ledgers.reduce((total, ledger) => total + ledger.summary.finalCumulativeProfitKrw, 0),
+      openAmounts: Object.fromEntries(
+        ledgers.map((ledger) => [ledger.summary.currencyCode, ledger.summary.totalOpenUsdAmount])
+      ) as Partial<Record<CurrencyCode, string>>
     };
   }, [data]);
+
+  const selectedCurrency = currencyCode === "ALL" ? null : getCurrencyOption(currencyCode);
 
   return (
     <main className="content-page ledger-page">
@@ -251,6 +390,16 @@ function StatsContent() {
           <h1>FX 통계</h1>
         </div>
         <div className="ledger-actions">
+          <label className="period-select">
+            보기
+            <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value as StatsCurrencyCode)}>
+              {statsCurrencyOptions.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="period-select">
             기간 보기
             <select value={period} onChange={(event) => setPeriod(event.target.value)}>
@@ -271,20 +420,29 @@ function StatsContent() {
         <>
           <section className="ledger-summary">
             <div>
-              <span>표시 행</span>
-              <strong>{formatKrw(data.summary.visibleRows)}</strong>
+              <span>{selectedCurrency ? `환전가능 ${selectedCurrency.amountLabel}` : "환전가능 달러"}</span>
+              <strong>
+                {formatForeignCurrency(
+                  selectedCurrency ? summary.openAmounts[selectedCurrency.code] ?? "0" : summary.openAmounts.USD ?? "0",
+                  selectedCurrency?.code ?? "USD"
+                )}
+              </strong>
             </div>
             <div>
-              <span>매도 거래</span>
-              <strong>{formatKrw(data.summary.totalSellTransactionCount)}</strong>
+              <span>{selectedCurrency ? "마지막 기준일" : "환전가능 엔화"}</span>
+              <strong>
+                {selectedCurrency
+                  ? summary.latestLedgerDate ? formatCompactDate(summary.latestLedgerDate) : ""
+                  : formatForeignCurrency(summary.openAmounts.JPY ?? "0", "JPY")}
+              </strong>
             </div>
             <div>
               <span>표시손익 합계</span>
-              <strong>{formatKrwCurrency(data.summary.totalDisplayProfitKrw)}</strong>
+              <strong>{formatKrwCurrency(summary.totalDisplayProfitKrw)}</strong>
             </div>
             <div>
               <span>최종 누적수익</span>
-              <strong className="profit-strong">{formatKrwCurrency(data.summary.finalCumulativeProfitKrw)}</strong>
+              <strong className="profit-strong">{formatKrwCurrency(summary.finalCumulativeProfitKrw)}</strong>
             </div>
           </section>
 
@@ -301,8 +459,8 @@ function StatsContent() {
               emptyText="Open 로트가 없습니다."
               formatter={(value) => `${formatKrw(value)}건`}
               points={stats.openBuckets}
-              subtitle="아직 매도되지 않은 매수환율 구간"
-              title="Open 로트 환율 분포"
+              subtitle={selectedCurrency ? "아직 매도되지 않은 매수환율 구간" : "통화별 현재 open 로트 수"}
+              title={selectedCurrency ? `${selectedCurrency.label} Open 로트 환율 분포` : "통화별 Open 로트"}
             />
           </section>
         </>

@@ -116,7 +116,7 @@ def get_user_ledger_route(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     try:
-        ledger: LedgerResponse = list_ledger(db, current_user=user, period=period)
+        ledger: LedgerResponse = list_ledger(db, current_user=user, period=period, currency_code="USD")
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 

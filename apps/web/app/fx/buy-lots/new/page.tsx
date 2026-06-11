@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { AuthGuard } from "../../../../src/components/auth-guard";
 import { DateSegmentInput } from "../../../../src/components/date-segment-input";
-import { createBuyLot } from "../../../../src/lib/fx-api";
+import { createBuyLot, currencyOptions, getCurrencyOption, type CurrencyCode } from "../../../../src/lib/fx-api";
 
 function NewBuyLotContent() {
   /** FX 매수 등록 폼 상태를 관리하고 저장 성공 시 목록으로 이동합니다. */
 
   const router = useRouter();
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("USD");
   const [buyDate, setBuyDate] = useState("");
   const [buyKrwAmount, setBuyKrwAmount] = useState("");
   const [buyExchangeRate, setBuyExchangeRate] = useState("");
@@ -25,6 +26,7 @@ function NewBuyLotContent() {
 
     try {
       await createBuyLot({
+        currencyCode,
         buyDate,
         buyKrwAmount: Number(buyKrwAmount),
         buyExchangeRate
@@ -37,11 +39,23 @@ function NewBuyLotContent() {
     }
   }
 
+  const selectedCurrency = getCurrencyOption(currencyCode);
+
   return (
     <main className="content-page narrow">
       <p className="eyebrow">FX Ledger</p>
       <h1>매수 로트 등록</h1>
       <form className="post-form" onSubmit={handleSubmit}>
+        <label>
+          통화
+          <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value as CurrencyCode)}>
+            {currencyOptions.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <DateSegmentInput label="매수일" required value={buyDate} onChange={setBuyDate} />
         <label>
           매수원화환전금액
@@ -54,7 +68,7 @@ function NewBuyLotContent() {
           />
         </label>
         <label>
-          매수적용환율
+          매수적용환율 ({selectedCurrency.amountLabel})
           <input
             min="0.000001"
             required

@@ -4,14 +4,22 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AuthGuard } from "../../../src/components/auth-guard";
 import { SortableHeader, type SortOrder } from "../../../src/components/sortable-header";
-import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../src/lib/format";
-import { deleteBuyLot, listBuyLots, type BuyLotListResponse } from "../../../src/lib/fx-api";
+import { formatDate, formatDateTime, formatDecimal, formatForeignCurrency, formatKrw } from "../../../src/lib/format";
+import {
+  currencyOptions,
+  deleteBuyLot,
+  getCurrencyOption,
+  listBuyLots,
+  type BuyLotListResponse,
+  type CurrencyCode
+} from "../../../src/lib/fx-api";
 
 function BuyLotsContent() {
   /** 매수 로트 목록의 정렬 상태와 삭제 요청 흐름을 관리합니다. */
 
   const [data, setData] = useState<BuyLotListResponse | null>(null);
   const [error, setError] = useState("");
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>("USD");
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
   const [deletingBuyLotId, setDeletingBuyLotId] = useState<number | null>(null);
@@ -37,12 +45,14 @@ function BuyLotsContent() {
   const loadBuyLots = useCallback(() => {
     /** 현재 정렬 조건으로 첫 페이지 매수 로트를 다시 불러옵니다. */
 
-    listBuyLots(1, 20, sortBy, sortOrder)
+    listBuyLots(1, 20, sortBy, sortOrder, currencyCode)
       .then(setData)
       .catch((caughtError) =>
         setError(caughtError instanceof Error ? caughtError.message : "매수 로트를 불러오지 못했습니다.")
       );
-  }, [sortBy, sortOrder]);
+  }, [sortBy, sortOrder, currencyCode]);
+
+  const selectedCurrency = getCurrencyOption(currencyCode);
 
   useEffect(() => {
     loadBuyLots();
@@ -78,6 +88,18 @@ function BuyLotsContent() {
           매수 등록
         </Link>
       </section>
+      <section className="filter-bar">
+        <label>
+          통화
+          <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value as CurrencyCode)}>
+            {currencyOptions.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
       {error ? <p className="form-error">{error}</p> : null}
       {!data ? (
@@ -98,7 +120,7 @@ function BuyLotsContent() {
                   <SortableHeader label="매수적용환율" field="buy_exchange_rate" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                 </th>
                 <th>
-                  <SortableHeader label="달러환전금액" field="usd_amount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                  <SortableHeader label={`${selectedCurrency.amountLabel}환전금액`} field="usd_amount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                 </th>
                 <th>
                   <SortableHeader label="상태" field="lot_status" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
@@ -121,7 +143,7 @@ function BuyLotsContent() {
                     <td>{formatDate(lot.buyDate)}</td>
                     <td>{formatKrw(lot.buyKrwAmount)} KRW</td>
                     <td>{formatDecimal(lot.buyExchangeRate)}</td>
-                    <td>{formatDecimal(lot.usdAmount)} USD</td>
+                    <td>{formatForeignCurrency(lot.usdAmount, lot.currencyCode)}</td>
                     <td>{lot.lotStatus}</td>
                     <td>{formatDateTime(lot.createdAt)}</td>
                     <td>

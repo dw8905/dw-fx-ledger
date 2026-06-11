@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel, Field
 class BuyLotCreateRequest(BaseModel):
     """FX 매수 등록 시 원화 금액과 적용 환율을 검증하는 요청 모델입니다."""
 
+    currencyCode: Literal["USD", "JPY"] = "USD"
     buyDate: date
     buyKrwAmount: int = Field(gt=0)
     buyExchangeRate: Decimal = Field(gt=0)
@@ -15,6 +17,7 @@ class BuyLotCreateRequest(BaseModel):
 class BuyLotUpdateRequest(BaseModel):
     """아직 매도에 쓰이지 않은 매수 로트를 수정할 때 받는 요청 모델입니다."""
 
+    currencyCode: Literal["USD", "JPY"] = "USD"
     buyDate: date
     buyKrwAmount: int = Field(gt=0)
     buyExchangeRate: Decimal = Field(gt=0)
@@ -24,6 +27,8 @@ class BuyLotRead(BaseModel):
     """매수 로트 목록/상세 화면에 표시할 매수 로트 정보입니다."""
 
     buyLotId: int
+    currencyCode: str
+    quoteUnit: Decimal
     buyDate: date
     buyKrwAmount: int
     buyExchangeRate: Decimal
@@ -52,6 +57,7 @@ class ManualLotAllocationRequest(BaseModel):
 class SellTransactionCreateRequest(BaseModel):
     """FX 매도 등록 시 금액, 환율, 차감 전략, 수동 배분값을 검증합니다."""
 
+    currencyCode: Literal["USD", "JPY"] = "USD"
     sellDate: date
     sellUsdAmount: Decimal = Field(gt=0)
     sellExchangeRate: Decimal = Field(gt=0)
@@ -85,6 +91,8 @@ class SellTransactionRead(BaseModel):
     """매도 상세 화면에서 거래 합계와 로트별 차감 내역을 함께 담습니다."""
 
     sellTransactionId: int
+    currencyCode: str
+    quoteUnit: Decimal
     sellDate: date
     sellUsdAmount: Decimal
     sellExchangeRate: Decimal
@@ -103,6 +111,8 @@ class SellTransactionListItem(BaseModel):
     """매도 목록 테이블 한 행에 필요한 매도 거래 요약입니다."""
 
     sellTransactionId: int
+    currencyCode: str
+    quoteUnit: Decimal
     sellDate: date
     sellUsdAmount: Decimal
     sellExchangeRate: Decimal
@@ -129,6 +139,8 @@ class LedgerRowRead(BaseModel):
     """FX 원장 그리드의 한 행이며 매수/매도/손익 계산 결과를 한 줄로 표현합니다."""
 
     buyDate: date
+    currencyCode: str
+    quoteUnit: Decimal
     buyKrwAmount: int
     buyExchangeRate: Decimal
     usdAmount: Decimal
@@ -151,6 +163,8 @@ class LedgerSummaryRead(BaseModel):
     totalRows: int
     visibleRows: int
     openLotCount: int
+    currencyCode: str
+    quoteUnit: Decimal
     totalOpenUsdAmount: Decimal
     soldAllocationCount: int
     totalSellTransactionCount: int

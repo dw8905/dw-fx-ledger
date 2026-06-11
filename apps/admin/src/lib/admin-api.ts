@@ -56,6 +56,8 @@ export type LedgerResponse = {
   /** 관리자에서 특정 사용자의 FX 원장을 조회할 때 받는 원장 응답입니다. */
   items: Array<{
     buyDate: string;
+    currencyCode: string;
+    quoteUnit: string;
     buyKrwAmount: number;
     buyExchangeRate: string;
     usdAmount: string;
@@ -75,6 +77,8 @@ export type LedgerResponse = {
     totalRows: number;
     visibleRows: number;
     openLotCount: number;
+    currencyCode: string;
+    quoteUnit: string;
     totalOpenUsdAmount: string;
     soldAllocationCount: number;
     totalSellTransactionCount: number;

@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuthGuard } from "../../../../src/components/auth-guard";
-import { formatDate, formatDateTime, formatDecimal, formatKrw } from "../../../../src/lib/format";
+import { formatDate, formatDateTime, formatDecimal, formatForeignCurrency, formatKrw } from "../../../../src/lib/format";
 import {
   cancelSellTransaction,
   formatAllocationStrategy,
+  getCurrencyOption,
   getSellTransaction,
   type SellTransaction
 } from "../../../../src/lib/fx-api";
@@ -53,6 +54,8 @@ function SellTransactionDetailContent() {
     }
   }
 
+  const selectedCurrency = transaction ? getCurrencyOption(transaction.currencyCode) : getCurrencyOption("USD");
+
   return (
     <main className="content-page">
       <section className="content-header">
@@ -85,8 +88,8 @@ function SellTransactionDetailContent() {
                 <dd>{formatDate(transaction.sellDate)}</dd>
               </div>
               <div>
-                <dt>매도 USD</dt>
-                <dd>{formatDecimal(transaction.sellUsdAmount)} USD</dd>
+                <dt>매도 {selectedCurrency.amountLabel}</dt>
+                <dd>{formatForeignCurrency(transaction.sellUsdAmount, transaction.currencyCode)}</dd>
               </div>
               <div>
                 <dt>매도환율</dt>
@@ -149,7 +152,7 @@ function SellTransactionDetailContent() {
                     <th>Source</th>
                     <th>Sold</th>
                     <th>Remaining</th>
-                    <th>USD</th>
+                    <th>{selectedCurrency.amountLabel}</th>
                     <th>매수원가</th>
                     <th>매도원화</th>
                     <th>실제손익</th>
@@ -166,7 +169,7 @@ function SellTransactionDetailContent() {
                       </td>
                       <td>{allocation.closedBuyLotId}</td>
                       <td>{allocation.remainingBuyLotId || "-"}</td>
-                      <td>{formatDecimal(allocation.allocatedUsdAmount)} USD</td>
+                      <td>{formatForeignCurrency(allocation.allocatedUsdAmount, transaction.currencyCode)}</td>
                       <td>{formatKrw(allocation.allocatedBuyKrwAmount)} KRW</td>
                       <td>{formatKrw(allocation.allocatedSellKrwAmount)} KRW</td>
                       <td>{formatKrw(allocation.realProfitKrw)} KRW</td>

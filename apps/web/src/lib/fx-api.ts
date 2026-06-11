@@ -1,8 +1,23 @@
 import { apiFetch } from "./api";
 
+export type CurrencyCode = "USD" | "JPY";
+
+export const currencyOptions: Array<{ code: CurrencyCode; label: string; amountLabel: string; symbol: string }> = [
+  { code: "USD", label: "USD 달러", amountLabel: "달러", symbol: "$" },
+  { code: "JPY", label: "JPY 엔화", amountLabel: "엔화", symbol: "¥" }
+];
+
+export function getCurrencyOption(currencyCode: string) {
+  /** 통화 코드에 맞는 화면 표시용 라벨과 기호를 반환합니다. */
+
+  return currencyOptions.find((option) => option.code === currencyCode) ?? currencyOptions[0];
+}
+
 export type BuyLot = {
   /** 매수 로트 목록/상세에서 쓰는 FX 매수 원장 단위입니다. */
   buyLotId: number;
+  currencyCode: CurrencyCode;
+  quoteUnit: string;
   buyDate: string;
   buyKrwAmount: number;
   buyExchangeRate: string;
@@ -23,6 +38,8 @@ export type BuyLotListResponse = {
 export type SellTransaction = {
   /** 매도 거래 상세와 목록에서 공통으로 쓰는 매도 거래 모델입니다. */
   sellTransactionId: number;
+  currencyCode: CurrencyCode;
+  quoteUnit: string;
   sellDate: string;
   sellUsdAmount: string;
   sellExchangeRate: string;
@@ -87,6 +104,8 @@ export type SellTransactionListResponse = {
 export type LedgerRow = {
   /** FX 원장 그리드와 통계 차트의 기준이 되는 한 행입니다. */
   buyDate: string;
+  currencyCode: CurrencyCode;
+  quoteUnit: string;
   buyKrwAmount: number;
   buyExchangeRate: string;
   usdAmount: string;
@@ -108,6 +127,8 @@ export type LedgerSummary = {
   totalRows: number;
   visibleRows: number;
   openLotCount: number;
+  currencyCode: CurrencyCode;
+  quoteUnit: string;
   totalOpenUsdAmount: string;
   soldAllocationCount: number;
   totalSellTransactionCount: number;
@@ -163,20 +184,21 @@ export async function listBuyLots(
   page = 1,
   size = 10,
   sortBy?: string | null,
-  sortOrder?: SortOrder
+  sortOrder?: SortOrder,
+  currencyCode: CurrencyCode = "USD"
 ) {
   /** 매수 로트 목록을 페이지와 정렬 조건으로 조회합니다. */
 
   return apiFetch<BuyLotListResponse>(
-    withSort(`/fx/buy-lots?page=${page}&size=${size}`, sortBy, sortOrder)
+    withSort(`/fx/buy-lots?page=${page}&size=${size}&currencyCode=${currencyCode}`, sortBy, sortOrder)
   );
 }
 
-export async function listOpenBuyLotsForSelection() {
+export async function listOpenBuyLotsForSelection(currencyCode: CurrencyCode = "USD") {
   /** 수동 매도 차감 화면에서 선택 가능한 open 로트를 환율 높은 순으로 가져옵니다. */
 
   return apiFetch<BuyLotListResponse>(
-    "/fx/buy-lots?page=1&size=100&lot_status=open&is_active=true&sort_by=buy_exchange_rate&sort_order=desc"
+    `/fx/buy-lots?page=1&size=100&lot_status=open&is_active=true&sort_by=buy_exchange_rate&sort_order=desc&currencyCode=${currencyCode}`
   );
 }
 
@@ -187,6 +209,7 @@ export async function getBuyLot(buyLotId: number) {
 }
 
 export async function createBuyLot(input: {
+  currencyCode: CurrencyCode;
   buyDate: string;
   buyKrwAmount: number;
   buyExchangeRate: string;
@@ -202,6 +225,7 @@ export async function createBuyLot(input: {
 export async function updateBuyLot(
   buyLotId: number,
   input: {
+    currencyCode: CurrencyCode;
     buyDate: string;
     buyKrwAmount: number;
     buyExchangeRate: string;
@@ -227,16 +251,18 @@ export async function listSellTransactions(
   page = 1,
   size = 10,
   sortBy?: string | null,
-  sortOrder?: SortOrder
+  sortOrder?: SortOrder,
+  currencyCode: CurrencyCode = "USD"
 ) {
   /** 매도 거래 목록을 페이지와 정렬 조건으로 조회합니다. */
 
   return apiFetch<SellTransactionListResponse>(
-    withSort(`/fx/sell-transactions?page=${page}&size=${size}`, sortBy, sortOrder)
+    withSort(`/fx/sell-transactions?page=${page}&size=${size}&currencyCode=${currencyCode}`, sortBy, sortOrder)
   );
 }
 
 export async function createSellTransaction(input: {
+  currencyCode: CurrencyCode;
   sellDate: string;
   sellUsdAmount: string;
   sellExchangeRate: string;
@@ -270,14 +296,14 @@ export async function cancelSellTransaction(sellTransactionId: number, cancelRea
   });
 }
 
-export async function listLotEvents(page = 1, size = 10) {
+export async function listLotEvents(page = 1, size = 10, currencyCode: CurrencyCode = "USD") {
   /** FX Dev Lab에서 로트 이벤트 로그를 페이지 단위로 조회합니다. */
 
-  return apiFetch<LotEventListResponse>(`/fx/lot-events?page=${page}&size=${size}`);
+  return apiFetch<LotEventListResponse>(`/fx/lot-events?page=${page}&size=${size}&currencyCode=${currencyCode}`);
 }
 
-export async function getLedger(period = "all") {
+export async function getLedger(period = "all", currencyCode: CurrencyCode = "USD") {
   /** FX 원장과 통계 차트에서 사용할 기간별 원장 데이터를 조회합니다. */
 
-  return apiFetch<LedgerResponse>(`/fx/ledger?period=${encodeURIComponent(period)}`);
+  return apiFetch<LedgerResponse>(`/fx/ledger?period=${encodeURIComponent(period)}&currencyCode=${currencyCode}`);
 }

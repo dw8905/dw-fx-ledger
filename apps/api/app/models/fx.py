@@ -19,7 +19,7 @@ from app.db.base import (
 
 
 class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
-    """한 번의 USD 매도 거래와 그 거래의 전체 손익 합계를 저장합니다."""
+    """한 번의 외화 매도 거래와 그 거래의 전체 손익 합계를 저장합니다."""
 
     __tablename__ = "fx_sell_transactions"
 
@@ -29,6 +29,7 @@ class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.user_id"), nullable=False
     )
+    currency_code: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
     sell_date: Mapped[date] = mapped_column(nullable=False)
     sell_usd_amount: Mapped[Decimal] = mapped_column(USDNumeric, nullable=False)
     sell_exchange_rate: Mapped[Decimal] = mapped_column(ExchangeRate, nullable=False)
@@ -44,6 +45,7 @@ class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
 
     __table_args__ = (
         Index("ix_fx_sell_transactions_user_id", "user_id"),
+        Index("ix_fx_sell_transactions_user_id_currency_code", "user_id", "currency_code"),
         Index("ix_fx_sell_transactions_user_id_sell_date", "user_id", "sell_date"),
         Index("ix_fx_sell_transactions_allocation_strategy", "allocation_strategy"),
         Index("ix_fx_sell_transactions_transaction_status", "transaction_status"),
@@ -51,7 +53,7 @@ class FxSellTransaction(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
 
 
 class FxBuyLot(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
-    """매수로 생긴 USD 보유 묶음이며, 매도 시 닫힌/잔여 로트로 분리됩니다."""
+    """매수로 생긴 외화 보유 묶음이며, 매도 시 닫힌/잔여 로트로 분리됩니다."""
 
     __tablename__ = "fx_buy_lots"
 
@@ -66,6 +68,7 @@ class FxBuyLot(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
         BigInteger, ForeignKey("fx_buy_lots.buy_lot_id"), nullable=True
     )
     lot_status: Mapped[str] = mapped_column(String(30), nullable=False)
+    currency_code: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
     buy_date: Mapped[date] = mapped_column(nullable=False)
     buy_krw_amount: Mapped[int] = mapped_column(KRWAmount, nullable=False)
     buy_exchange_rate: Mapped[Decimal] = mapped_column(ExchangeRate, nullable=False)
@@ -75,9 +78,11 @@ class FxBuyLot(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
 
     __table_args__ = (
         Index("ix_fx_buy_lots_user_id", "user_id"),
+        Index("ix_fx_buy_lots_user_id_currency_code", "user_id", "currency_code"),
         Index(
             "ix_fx_buy_lots_user_id_lot_status_is_active_is_deleted",
             "user_id",
+            "currency_code",
             "lot_status",
             "is_active",
             "is_deleted",

@@ -147,7 +147,7 @@ def get_admin_user_detail(db: Session, *, user_id: int) -> AdminUserDetail | Non
             FxBuyLot.is_deleted.is_(False),
         )
     ) or Decimal("0")
-    ledger_summary = list_ledger(db, current_user=user, period="all").summary
+    ledger_summary = list_ledger(db, current_user=user, period="all", currency_code="USD").summary
 
     return AdminUserDetail(
         **to_admin_user_list_item(user).model_dump(),
