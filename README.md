@@ -349,6 +349,7 @@ docker compose up -d postgres
 호스트 WSL에 Docker, Docker Compose, Git만 있는 경우에는 API/Web/Admin 런타임을 컨테이너에서 실행할 수 있습니다. 이 구성은 PostgreSQL 컨테이너를 띄우지 않고 외부 TrueNAS PostgreSQL을 사용합니다.
 
 ```bash
+bash scripts/bootstrap-docker-host.sh
 cp .env.docker.example .env.docker.local
 vi .env.docker.local
 bash scripts/docker-dev-up.sh

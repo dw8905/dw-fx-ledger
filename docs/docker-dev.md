@@ -56,6 +56,16 @@ BACKEND_INTERNAL_URL=http://api:8000
 
 개발용 스크립트를 사용하는 방식을 권장합니다.
 
+최초 1회 호스트 준비:
+
+```bash
+bash scripts/bootstrap-docker-host.sh
+```
+
+이 스크립트는 `git`, `docker`, `docker compose`를 확인하고, 없는 경우 Ubuntu/WSL 기준으로 설치 여부를 물어봅니다. Docker 설치에는 `sudo`가 필요할 수 있습니다. 현재 사용자가 Docker socket에 접근할 수 없으면 `docker` 그룹 추가 안내를 표시하며, 그룹 추가 후에는 WSL shell을 닫았다가 다시 열어야 합니다.
+
+프로젝트 실행:
+
 ```bash
 bash scripts/docker-dev-up.sh
 ```

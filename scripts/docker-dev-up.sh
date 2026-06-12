@@ -5,6 +5,36 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker-compose.dev.yml"
 ENV_FILE="${COMPOSE_ENV_FILE:-$ROOT_DIR/.env.docker.local}"
 
+if ! command -v docker >/dev/null 2>&1; then
+  cat <<'EOF'
+Docker is not installed.
+
+Run the host bootstrap first:
+  bash scripts/bootstrap-docker-host.sh
+EOF
+  exit 1
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+  cat <<'EOF'
+Docker Compose is not available.
+
+Run the host bootstrap first:
+  bash scripts/bootstrap-docker-host.sh
+EOF
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  cat <<'EOF'
+Docker daemon is not reachable or the current user cannot access it.
+
+Run the host bootstrap first:
+  bash scripts/bootstrap-docker-host.sh
+EOF
+  exit 1
+fi
+
 compose_args=()
 if [[ -f "$ENV_FILE" ]]; then
   compose_args+=(--env-file "$ENV_FILE")
