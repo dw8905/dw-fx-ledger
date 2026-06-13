@@ -77,6 +77,54 @@ def test_posts_crud_and_permissions() -> None:
     assert deleted_detail_response.status_code == 404
 
 
+def test_post_comments_crud_and_permissions() -> None:
+    owner_client = TestClient(app)
+    commenter_client = TestClient(app)
+    other_client = TestClient(app)
+    register_user(owner_client, uuid4().hex[:12])
+    commenter = register_user(commenter_client, uuid4().hex[:12])
+    register_user(other_client, uuid4().hex[:12])
+
+    create_post_response = owner_client.post(
+        "/posts",
+        json={"title": "댓글 대상 게시글", "content": "댓글을 달 본문입니다."},
+    )
+    assert create_post_response.status_code == 201, create_post_response.text
+    post_id = create_post_response.json()["postId"]
+
+    empty_comments_response = owner_client.get(f"/posts/{post_id}/comments")
+    assert empty_comments_response.status_code == 200, empty_comments_response.text
+    assert empty_comments_response.json() == []
+
+    create_comment_response = commenter_client.post(
+        f"/posts/{post_id}/comments",
+        json={"content": "첫 댓글입니다."},
+    )
+    assert create_comment_response.status_code == 201, create_comment_response.text
+    created_comment = create_comment_response.json()
+    comment_id = created_comment["commentId"]
+    assert created_comment["postId"] == post_id
+    assert created_comment["authorId"] == commenter["user_id"]
+    assert created_comment["authorName"] == commenter["display_name"]
+    assert created_comment["content"] == "첫 댓글입니다."
+    assert created_comment["commentStatus"] == "published"
+
+    comments_response = owner_client.get(f"/posts/{post_id}/comments")
+    assert comments_response.status_code == 200, comments_response.text
+    assert [item["commentId"] for item in comments_response.json()] == [comment_id]
+
+    forbidden_delete_response = other_client.delete(f"/posts/{post_id}/comments/{comment_id}")
+    assert forbidden_delete_response.status_code == 403
+
+    delete_response = commenter_client.delete(f"/posts/{post_id}/comments/{comment_id}")
+    assert delete_response.status_code == 200, delete_response.text
+    assert delete_response.json()["message"] == "Comment deleted"
+
+    comments_after_delete_response = owner_client.get(f"/posts/{post_id}/comments")
+    assert comments_after_delete_response.status_code == 200, comments_after_delete_response.text
+    assert comments_after_delete_response.json() == []
+
+
 def test_post_view_count_increments_once_per_detail_request() -> None:
     client = TestClient(app)
     register_user(client, uuid4().hex[:12])

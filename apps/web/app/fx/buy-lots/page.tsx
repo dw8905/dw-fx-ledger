@@ -79,11 +79,7 @@ function BuyLotsContent() {
 
   return (
     <main className="content-page">
-      <section className="content-header">
-        <div>
-          <p className="eyebrow">FX Ledger</p>
-          <h1>매수 로트 목록</h1>
-        </div>
+      <section className="content-header content-header-actions">
         <Link className="primary-link" href="/fx/buy-lots/new">
           매수 등록
         </Link>

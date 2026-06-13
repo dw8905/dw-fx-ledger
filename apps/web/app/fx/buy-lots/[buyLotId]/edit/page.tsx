@@ -77,8 +77,6 @@ function EditBuyLotContent() {
 
   return (
     <main className="content-page narrow">
-      <p className="eyebrow">FX Ledger</p>
-      <h1>매수 로트 수정</h1>
       <form className="post-form" onSubmit={handleSubmit}>
         <label>
           통화

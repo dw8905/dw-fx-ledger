@@ -237,6 +237,10 @@ p {
   margin-bottom: 24px;
 }
 
+.content-header-actions {
+  justify-content: flex-end;
+}
+
 .primary-link,
 .secondary-link {
   display: inline-flex;
@@ -587,6 +591,114 @@ p {
   line-height: 1.7;
 }
 
+.comments-section {
+  display: grid;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.comments-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comments-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.comments-header span {
+  color: #52705e;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.comment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-item {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #dce4dd;
+  border-radius: 6px;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.comment-meta strong {
+  color: #17201b;
+}
+
+.comment-meta span {
+  color: #52705e;
+  font-size: 13px;
+}
+
+.comment-item p {
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.comment-delete-button {
+  justify-self: end;
+  border: 0;
+  padding: 0;
+  color: #b42318;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.comment-form {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-form label {
+  display: grid;
+  gap: 8px;
+  color: #34483b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.comment-form textarea {
+  width: 100%;
+  min-height: 96px;
+  border: 1px solid #c7d3ca;
+  border-radius: 6px;
+  padding: 12px;
+  color: #17201b;
+  background: #ffffff;
+  resize: vertical;
+}
+
+.comment-form button {
+  justify-self: end;
+}
+
+.comment-login,
+.empty-state {
+  color: #52705e;
+  font-size: 14px;
+}
+
+.comment-login a {
+  color: #2e6140;
+  font-weight: 800;
+}
+
 .ledger-page {
   width: min(100%, 1760px);
   max-width: none;
@@ -647,6 +759,10 @@ p {
 
 .trade-page {
   width: min(100%, 1240px);
+}
+
+.item-trades-page {
+  padding-top: 0;
 }
 
 .section-tabs-frame {

@@ -34,6 +34,18 @@ export type PostDetail = {
   updatedAt: string;
 };
 
+export type PostComment = {
+  /** 게시글 상세 화면에 표시하는 댓글 한 건입니다. */
+  commentId: number;
+  postId: number;
+  authorId: number;
+  authorName: string;
+  content: string;
+  commentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type BoardType = {
   /** 공통코드 기반 게시판 타입 선택 옵션입니다. */
   code: string;
@@ -76,6 +88,31 @@ export async function getPost(postId: number) {
 
   return apiFetch<PostDetail>(`/posts/${postId}`, {
     skipRefresh: true
+  });
+}
+
+export async function listPostComments(postId: number) {
+  /** 게시글에 달린 공개 댓글 목록을 조회합니다. */
+
+  return apiFetch<PostComment[]>(`/posts/${postId}/comments`, {
+    skipRefresh: true
+  });
+}
+
+export async function createPostComment(postId: number, content: string) {
+  /** 로그인 사용자의 댓글을 생성합니다. */
+
+  return apiFetch<PostComment>(`/posts/${postId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ content })
+  });
+}
+
+export async function deletePostComment(postId: number, commentId: number) {
+  /** 댓글 작성자 또는 admin 권한으로 댓글을 삭제합니다. */
+
+  return apiFetch<{ message: string }>(`/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE"
   });
 }
 

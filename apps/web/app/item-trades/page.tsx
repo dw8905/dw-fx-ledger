@@ -545,14 +545,7 @@ function ItemTradesContent() {
         <SectionTabs activeId={activeTab} ariaLabel="자산관리 기능" items={tabs} />
       </div>
 
-      <main className="content-page trade-page">
-        <section className="content-header">
-          <div>
-            <p className="eyebrow">Asset Management</p>
-            <h1>자산관리</h1>
-          </div>
-        </section>
-
+      <main className="content-page trade-page item-trades-page">
         {error ? <p className="form-error">{error}</p> : null}
         {activeTab === "buy" ? (
           <>

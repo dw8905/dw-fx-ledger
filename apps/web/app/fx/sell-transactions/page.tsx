@@ -53,11 +53,7 @@ function SellTransactionsContent() {
 
   return (
     <main className="content-page">
-      <section className="content-header">
-        <div>
-          <p className="eyebrow">FX Ledger</p>
-          <h1>매도 거래 목록</h1>
-        </div>
+      <section className="content-header content-header-actions">
         <Link className="primary-link" href="/fx/sell-transactions/new">
           매도 등록
         </Link>

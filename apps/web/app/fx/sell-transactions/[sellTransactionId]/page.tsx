@@ -58,11 +58,7 @@ function SellTransactionDetailContent() {
 
   return (
     <main className="content-page">
-      <section className="content-header">
-        <div>
-          <p className="eyebrow">FX Ledger</p>
-          <h1>매도 거래 상세</h1>
-        </div>
+      <section className="content-header content-header-actions">
         <button className="secondary-button" type="button" onClick={() => router.push("/fx/sell-transactions")}>
           목록
         </button>

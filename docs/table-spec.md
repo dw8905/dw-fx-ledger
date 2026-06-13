@@ -12,6 +12,7 @@
 | `refresh_tokens` | Refresh token hash, 만료/폐기 상태 |
 | `common_codes` | 게시판 타입 등 여러 기능에서 재사용하는 공통코드 |
 | `board_posts` | 게시판 타입 코드로 구분되는 게시글 |
+| `board_comments` | 게시글 댓글 |
 | `fx_buy_lots` | FX 매수 로트. 원본, split, sold, remaining, restored 로트가 모두 저장됨 |
 | `fx_sell_transactions` | FX 매도 거래 헤더 |
 | `fx_lot_allocations` | 매도 거래가 차감한 매수 로트와 손익 계산 결과 |
@@ -36,6 +37,7 @@
 | `roles.role_code` | `user`, `admin` | 일반 사용자 / 관리자 |
 | `common_codes.code_group` | `board_type` | 게시판 타입 코드 그룹 |
 | `board_posts.post_status` | `published`, `deleted` | 게시글 공개 / 삭제 |
+| `board_comments.comment_status` | `published`, `deleted` | 댓글 공개 / 삭제 |
 | `fx_buy_lots.lot_status` | `open`, `split`, `sold`, `cancelled` | 매수 로트 상태 |
 | `fx_sell_transactions.transaction_status` | `completed`, `cancelled` | 매도 거래 완료 / 취소 |
 | `fx_sell_transactions.allocation_strategy` | `highest_rate_first`, `fifo`, `lifo`, `manual` | 매수 로트 차감 전략 |
@@ -154,6 +156,25 @@ Refresh token을 원문이 아닌 hash로 저장합니다.
 | `updated_by` | `bigint` | Y | FK `users.user_id` |  | 수정자 |
 
 인덱스: `ix_board_posts_author_id(author_id)`, `ix_board_posts_board_type_code_created_at(board_type_code, created_at)`, `ix_board_posts_created_at(created_at)`, `ix_board_posts_is_deleted_created_at(is_deleted, created_at)`
+
+## board_comments
+
+게시글 댓글 테이블입니다. 댓글은 물리 삭제하지 않고 `is_deleted=true`, `comment_status='deleted'`로 숨깁니다.
+
+| 컬럼 | 타입 | Null | Key | Default | 설명 |
+|---|---|---:|---|---|---|
+| `comment_id` | `bigint` | N | PK | autoincrement | 댓글 ID |
+| `post_id` | `bigint` | N | FK `board_posts.post_id`, IX composite |  | 댓글이 달린 게시글 |
+| `author_id` | `bigint` | N | FK `users.user_id`, IX |  | 댓글 작성자 |
+| `content` | `text` | N |  |  | 댓글 본문 |
+| `comment_status` | `varchar(30)` | N |  | `published` | 댓글 상태 |
+| `is_deleted` | `boolean` | N | IX composite | `false` | 논리 삭제 여부 |
+| `created_at` | `timestamptz` | N | IX composite | `now()` | 생성 시각 |
+| `updated_at` | `timestamptz` | N |  | `now()` | 수정 시각 |
+| `created_by` | `bigint` | Y | FK `users.user_id` |  | 생성자 |
+| `updated_by` | `bigint` | Y | FK `users.user_id` |  | 수정자 |
+
+인덱스: `ix_board_comments_post_id_created_at(post_id, created_at)`, `ix_board_comments_author_id(author_id)`, `ix_board_comments_is_deleted_created_at(is_deleted, created_at)`
 
 ## fx_buy_lots
 

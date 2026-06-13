@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class PostCreateRequest(BaseModel):
@@ -24,6 +24,41 @@ class BoardTypeItem(BaseModel):
 
     code: str
     name: str
+
+
+class PostCommentCreateRequest(BaseModel):
+    """게시글 댓글 작성 입력값을 검증합니다."""
+
+    content: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_blank(cls, value: str) -> str:
+        """공백만 있는 댓글은 저장하지 않습니다."""
+
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Comment content is required")
+        return stripped
+
+
+class PostCommentItem(BaseModel):
+    """게시글 상세 화면에 표시할 댓글 한 건입니다."""
+
+    commentId: int
+    postId: int
+    authorId: int
+    authorName: str
+    content: str
+    commentStatus: str
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class PostCommentDeleteResponse(BaseModel):
+    """댓글 삭제 요청이 끝났음을 알려주는 단순 메시지 응답입니다."""
+
+    message: str
 
 
 class PostListItem(BaseModel):

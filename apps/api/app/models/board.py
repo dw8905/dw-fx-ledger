@@ -34,3 +34,27 @@ class BoardPost(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
         Index("ix_board_posts_created_at", "created_at"),
         Index("ix_board_posts_is_deleted_created_at", "is_deleted", "created_at"),
     )
+
+
+class BoardComment(TimestampMixin, AuditUserMixin, SoftDeleteMixin, Base):
+    """게시글에 달린 댓글 본문과 작성자를 저장하는 모델입니다."""
+
+    __tablename__ = "board_comments"
+
+    comment_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    post_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("board_posts.post_id"), nullable=False
+    )
+    author_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.user_id"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    comment_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="published"
+    )
+
+    __table_args__ = (
+        Index("ix_board_comments_post_id_created_at", "post_id", "created_at"),
+        Index("ix_board_comments_author_id", "author_id"),
+        Index("ix_board_comments_is_deleted_created_at", "is_deleted", "created_at"),
+    )

@@ -55,11 +55,7 @@ export default function PostsPage() {
 
   return (
     <main className="content-page">
-      <section className="content-header">
-        <div>
-          <p className="eyebrow">Board</p>
-          <h1>게시글 목록</h1>
-        </div>
+      <section className="content-header content-header-actions">
         <Link className="primary-link" href="/posts/new">
           글쓰기
         </Link>

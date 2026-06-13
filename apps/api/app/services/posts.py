@@ -2,10 +2,11 @@ from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.auth import User
-from app.models.board import BoardPost
+from app.models.board import BoardComment, BoardPost
 from app.models.common import CommonCode
 from app.schemas.posts import (
     BoardTypeItem,
+    PostCommentItem,
     PostDetailResponse,
     PostListItem,
     PostListResponse,
@@ -33,6 +34,12 @@ def can_mutate_post(user: User, post: BoardPost) -> bool:
     """작성자 본인 또는 admin만 게시글을 수정/삭제할 수 있게 판정합니다."""
 
     return post.author_id == user.user_id or is_admin(user)
+
+
+def can_mutate_comment(user: User, comment: BoardComment) -> bool:
+    """댓글 작성자 본인 또는 admin만 댓글을 삭제할 수 있게 판정합니다."""
+
+    return comment.author_id == user.user_id or is_admin(user)
 
 
 def normalize_board_type_code(board_type_code: str | None) -> str:
@@ -190,6 +197,90 @@ def get_post_for_mutation(db: Session, post_id: int) -> BoardPost | None:
     )
 
 
+def get_visible_post(db: Session, post_id: int) -> BoardPost | None:
+    """댓글 목록/작성 대상이 되는 공개 게시글 원본 모델을 조회합니다."""
+
+    return db.scalar(
+        select(BoardPost).where(
+            BoardPost.post_id == post_id,
+            BoardPost.is_deleted.is_(False),
+            BoardPost.post_status == PUBLISHED,
+        )
+    )
+
+
+def list_comments(db: Session, *, post_id: int) -> list[PostCommentItem] | None:
+    """공개 게시글의 삭제되지 않은 댓글 목록을 오래된 순서로 반환합니다."""
+
+    post = get_visible_post(db, post_id)
+    if post is None:
+        return None
+
+    rows = db.execute(
+        select(BoardComment, User.display_name)
+        .join(User, User.user_id == BoardComment.author_id)
+        .where(
+            BoardComment.post_id == post_id,
+            BoardComment.is_deleted.is_(False),
+            BoardComment.comment_status == PUBLISHED,
+        )
+        .order_by(BoardComment.created_at.asc(), BoardComment.comment_id.asc())
+    ).all()
+    return [to_comment_response(comment, author_name) for comment, author_name in rows]
+
+
+def create_comment(
+    db: Session,
+    *,
+    post_id: int,
+    content: str,
+    author: User,
+) -> PostCommentItem | None:
+    """현재 사용자를 작성자로 하여 공개 게시글에 댓글을 생성합니다."""
+
+    post = get_visible_post(db, post_id)
+    if post is None:
+        return None
+
+    comment = BoardComment(
+        post_id=post.post_id,
+        author_id=author.user_id,
+        content=content,
+        created_by=author.user_id,
+        updated_by=author.user_id,
+    )
+    db.add(comment)
+    db.flush()
+    db.refresh(comment)
+    return to_comment_response(comment, author.display_name)
+
+
+def get_comment_for_mutation(db: Session, *, post_id: int, comment_id: int) -> BoardComment | None:
+    """삭제 대상이 되는 공개 댓글 원본 모델을 조회합니다."""
+
+    return db.scalar(
+        select(BoardComment)
+        .join(BoardPost, BoardPost.post_id == BoardComment.post_id)
+        .where(
+            BoardComment.comment_id == comment_id,
+            BoardComment.post_id == post_id,
+            BoardComment.is_deleted.is_(False),
+            BoardComment.comment_status == PUBLISHED,
+            BoardPost.is_deleted.is_(False),
+            BoardPost.post_status == PUBLISHED,
+        )
+    )
+
+
+def delete_comment(db: Session, *, comment: BoardComment, deleted_by: User) -> None:
+    """댓글을 물리 삭제하지 않고 deleted 상태로 전환합니다."""
+
+    comment.is_deleted = True
+    comment.comment_status = DELETED
+    comment.updated_by = deleted_by.user_id
+    db.flush()
+
+
 def create_post(
     db: Session,
     *,
@@ -276,6 +367,21 @@ def to_detail_response(
         postStatus=post.post_status,
         createdAt=post.created_at,
         updatedAt=post.updated_at,
+    )
+
+
+def to_comment_response(comment: BoardComment, author_name: str) -> PostCommentItem:
+    """BoardComment 모델을 댓글 응답 스키마로 변환합니다."""
+
+    return PostCommentItem(
+        commentId=comment.comment_id,
+        postId=comment.post_id,
+        authorId=comment.author_id,
+        authorName=author_name,
+        content=comment.content,
+        commentStatus=comment.comment_status,
+        createdAt=comment.created_at,
+        updatedAt=comment.updated_at,
     )
 
 

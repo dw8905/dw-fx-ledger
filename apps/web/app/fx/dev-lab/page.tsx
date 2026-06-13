@@ -49,11 +49,7 @@ function DevLabContent() {
 
   return (
     <main className="content-page">
-      <section className="content-header">
-        <div>
-          <p className="eyebrow">FX Ledger</p>
-          <h1>FX Dev Lab</h1>
-        </div>
+      <section className="content-header content-header-actions">
         <div className="button-row">
           <Link className="secondary-link" href="/fx/buy-lots">
             매수 로트

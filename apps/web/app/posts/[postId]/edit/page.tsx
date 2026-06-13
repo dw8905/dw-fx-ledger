@@ -58,8 +58,6 @@ function EditPostContent() {
 
   return (
     <main className="content-page narrow">
-      <p className="eyebrow">Board</p>
-      <h1>게시글 수정</h1>
       <PostForm
         boardTypes={boardTypes}
         initialBoardTypeCode={post.boardTypeCode}

@@ -56,6 +56,16 @@ board_posts,created_at,timestamptz,false,false,,false,true,now(),생성 시각
 board_posts,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
 board_posts,created_by,bigint,true,false,users.user_id,false,false,,생성자
 board_posts,updated_by,bigint,true,false,users.user_id,false,false,,수정자
+board_comments,comment_id,bigint,false,true,,false,false,autoincrement,댓글 ID
+board_comments,post_id,bigint,false,false,board_posts.post_id,false,true,,게시글
+board_comments,author_id,bigint,false,false,users.user_id,false,true,,댓글 작성자
+board_comments,content,text,false,false,,false,false,,댓글 본문
+board_comments,comment_status,varchar(30),false,false,,false,false,published,댓글 상태
+board_comments,is_deleted,boolean,false,false,,false,true,false,논리 삭제 여부
+board_comments,created_at,timestamptz,false,false,,false,true,now(),생성 시각
+board_comments,updated_at,timestamptz,false,false,,false,false,now(),수정 시각
+board_comments,created_by,bigint,true,false,users.user_id,false,false,,생성자
+board_comments,updated_by,bigint,true,false,users.user_id,false,false,,수정자
 fx_buy_lots,buy_lot_id,bigint,false,true,,false,false,autoincrement,매수 로트 ID
 fx_buy_lots,user_id,bigint,false,false,users.user_id,false,true,,소유 사용자
 fx_buy_lots,parent_buy_lot_id,bigint,true,false,fx_buy_lots.buy_lot_id,false,true,,부모 로트

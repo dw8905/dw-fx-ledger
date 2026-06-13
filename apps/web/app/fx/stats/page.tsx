@@ -417,11 +417,7 @@ function StatsContent() {
 
   return (
     <main className="content-page ledger-page">
-      <section className="content-header">
-        <div>
-          <p className="eyebrow">FX Analytics</p>
-          <h1>FX 통계</h1>
-        </div>
+      <section className="content-header content-header-actions">
         <div className="ledger-actions">
           <label className="period-select">
             보기

@@ -19,8 +19,6 @@ export default function NewPostPage() {
   return (
     <AuthGuard>
       <main className="content-page narrow">
-        <p className="eyebrow">Board</p>
-        <h1>게시글 작성</h1>
         <PostForm
           boardTypes={boardTypes}
           submitLabel="저장"
